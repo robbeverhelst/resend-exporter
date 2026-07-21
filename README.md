@@ -23,6 +23,7 @@ Specification-only repository. Implementation not started yet.
 - Emit structured JSON logs for operational detail and debugging.
 - Keep labels low-cardinality and safe for public dashboards.
 - Support Grafana alerting examples for bounced, failed, and delayed emails.
+- Optionally use the Resend API for reconciliation, enrichment, and webhook configuration checks.
 - Be generic enough for any Resend user, not tied to one application.
 
 ## Non-Goals
@@ -32,6 +33,7 @@ Specification-only repository. Implementation not started yet.
 - Sending alert notifications directly.
 - Acting as a general webhook automation platform.
 - Depending on Grafana, Loki, or Kubernetes at runtime.
+- Requiring a Resend API key for basic webhook-only operation.
 
 Alert routing belongs in Grafana Alerting, Alertmanager, ntfy, Slack, Telegram, PagerDuty, or whatever the operator already uses.
 
@@ -62,6 +64,56 @@ Later support can include:
 - `email.received`
 - domain events
 - contact/audience events
+
+## Optional Resend API Usage
+
+The exporter should work without a Resend API key when used as a pure webhook receiver.
+
+When `RESEND_API_KEY` is configured, the exporter can use the Resend API for stronger monitoring:
+
+- backfill events after exporter downtime
+- reconcile recent sent emails against received webhook events
+- enrich sparse webhook events with sent-email or log details
+- verify webhook configuration still includes critical events
+- expose domain or configuration health metrics
+
+Useful API surfaces:
+
+- `GET /emails` - list sent emails
+- `GET /emails/:id` - retrieve a sent email
+- `GET /logs` - list delivery/log records
+- `GET /webhooks` - list configured webhooks
+- `POST /webhooks` / update / delete - manage webhook configuration
+
+API usage should be optional because webhook-only deployments are simpler and need fewer permissions.
+
+### Reconciliation Mode
+
+Reconciliation mode should periodically look back over a small time window and compare Resend's API state with locally observed webhook events.
+
+Example use cases:
+
+- the exporter was down while Resend retried and eventually bounced an email
+- a webhook delivery failed or expired before reaching the exporter
+- a deployment lost in-memory counters and needs a recent baseline
+
+Suggested configuration:
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `RESEND_API_KEY` | no | Enables Resend API features |
+| `RESEND_EXPORTER_RECONCILE_ENABLED` | no | Enable periodic API reconciliation |
+| `RESEND_EXPORTER_RECONCILE_INTERVAL` | no | Reconciliation interval, default `5m` |
+| `RESEND_EXPORTER_RECONCILE_LOOKBACK` | no | API lookback window, default `1h` |
+
+Suggested metrics:
+
+```text
+resend_reconcile_runs_total{status="success"}
+resend_reconcile_errors_total{reason="api_error"}
+resend_reconcile_last_success_timestamp_seconds
+resend_webhook_configured{event_type="email.bounced"} 1
+```
 
 ## Proposed Metrics
 
@@ -137,6 +189,7 @@ Suggested environment variables:
 | Variable | Required | Description |
 | --- | --- | --- |
 | `RESEND_WEBHOOK_SECRET` | yes | Secret used to verify Resend webhook signatures |
+| `RESEND_API_KEY` | no | Enables API reconciliation, enrichment, and config checks |
 | `RESEND_EXPORTER_ADDR` | no | Listen address, default `:8080` |
 | `RESEND_EXPORTER_WEBHOOK_PATH` | no | Webhook path, default `/webhooks/resend` |
 | `RESEND_EXPORTER_METRICS_PATH` | no | Metrics path, default `/metrics` |
