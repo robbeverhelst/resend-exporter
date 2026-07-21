@@ -1,0 +1,98 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/robbeverhelst/resend-exporter
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+resend:
+  # The Resend webhook signing secret (whsec_...). Setting this creates a
+  # Secret managed by the chart. Prefer existingSecret in production.
+  webhookSecret: ""
+  # Name of an existing Secret containing the webhook secret.
+  existingSecret: ""
+  # Key inside the existing Secret.
+  existingSecretKey: webhook-secret
+
+config:
+  logLevel: info
+  # strict | hash | none
+  redactionMode: strict
+  # Extra recipient domains that keep their own to_domain label value instead
+  # of being bucketed into "other".
+  toDomainAllowlist: []
+  webhookPath: /webhooks/resend
+  metricsPath: /metrics
+
+# Extra environment variables for the container.
+extraEnv: []
+
+service:
+  type: ClusterIP
+  port: 8080
+
+serviceMonitor:
+  # Requires the Prometheus Operator CRDs.
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+ingress:
+  # Resend must be able to reach the webhook path from the internet.
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: resend-exporter.example.com
+      paths:
+        - path: /webhooks/resend
+          pathType: Prefix
+  tls: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,23 @@
+resend-exporter {{ .Chart.AppVersion }} deployed.
+
+{{- if not (or .Values.resend.webhookSecret .Values.resend.existingSecret) }}
+
+WARNING: no webhook secret configured. Set resend.webhookSecret or
+resend.existingSecret, otherwise the pod will crash on startup.
+{{- end }}
+
+Webhook endpoint (must be reachable by Resend):
+  {{ .Values.config.webhookPath }}
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}{{ $.Values.config.webhookPath }}
+{{- end }}
+{{- else }}
+
+Ingress is disabled. Expose the service yourself (Ingress, HTTPRoute, or an
+edge proxy) so Resend can deliver webhooks.
+{{- end }}
+
+Metrics:
+  kubectl port-forward svc/{{ include "resend-exporter.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://127.0.0.1:8080{{ .Values.config.metricsPath }}

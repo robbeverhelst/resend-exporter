@@ -1,0 +1,33 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "bun run scripts/build-binaries.ts ${nextRelease.version}",
+        "successCmd": "echo \"version=${nextRelease.version}\" >> \"$GITHUB_OUTPUT\""
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          { "path": "dist/resend-exporter-linux-x64", "label": "resend-exporter (linux x64)" },
+          { "path": "dist/resend-exporter-linux-arm64", "label": "resend-exporter (linux arm64)" },
+          { "path": "dist/resend-exporter-darwin-x64", "label": "resend-exporter (macOS x64)" },
+          { "path": "dist/resend-exporter-darwin-arm64", "label": "resend-exporter (macOS arm64)" }
+        ]
+      }
+    ]
+  ]
+}
