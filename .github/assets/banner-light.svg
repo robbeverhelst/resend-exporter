@@ -1,0 +1,47 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="resend-exporter — Prometheus metrics for Resend email delivery">
+  <defs>
+    <linearGradient id="pulse" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1a7f37" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#1a7f37"/>
+      <stop offset="0.5" stop-color="#1a7f37"/>
+      <stop offset="0.62" stop-color="#9a6700"/>
+      <stop offset="0.78" stop-color="#cf222e"/>
+      <stop offset="1" stop-color="#cf222e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 150)">
+      <stop offset="0" stop-color="#1a7f37" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#1a7f37" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- faint dashboard grid -->
+  <g stroke="#d0d7de" stroke-opacity="0.5" stroke-width="1">
+    <line x1="0" y1="75" x2="1200" y2="75"/>
+    <line x1="0" y1="150" x2="1200" y2="150"/>
+    <line x1="0" y1="225" x2="1200" y2="225"/>
+    <line x1="200" y1="0" x2="200" y2="300"/>
+    <line x1="400" y1="0" x2="400" y2="300"/>
+    <line x1="600" y1="0" x2="600" y2="300"/>
+    <line x1="800" y1="0" x2="800" y2="300"/>
+    <line x1="1000" y1="0" x2="1000" y2="300"/>
+  </g>
+
+  <!-- envelope icon -->
+  <g transform="translate(378 78)">
+    <rect x="0" y="0" width="92" height="64" rx="10" stroke="#1f2328" stroke-width="5"/>
+    <path d="M6 10 L46 40 L86 10" stroke="#1f2328" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- scrape tick -->
+    <circle cx="92" cy="0" r="14" fill="#ffffff" stroke="#1a7f37" stroke-width="4"/>
+    <path d="M86 0.5 L90.5 5 L98.5 -4.5" stroke="#1a7f37" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="500" y="122" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="52" font-weight="700" fill="#1f2328">resend<tspan fill="#1a7f37">-</tspan>exporter</text>
+
+  <!-- heartbeat line -->
+  <path d="M0 190 H310 l14 0 10 -22 12 44 12 -60 14 76 12 -56 10 18 14 0 H560 l12 0 10 -16 12 30 12 -44 14 56 12 -40 10 14 12 0 H860 l12 0 8 -12 10 22 12 -34 14 44 12 -32 8 12 12 0 H1200" stroke="url(#pulse)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="0" y="150" width="1200" height="90" fill="url(#glow)"/>
+
+  <!-- tagline -->
+  <text x="600" y="248" text-anchor="middle" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="21" fill="#57606a">Prometheus metrics &#38; Grafana alerts for your Resend email delivery</text>
+</svg>
