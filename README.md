@@ -60,7 +60,7 @@ The webhook path must be reachable by Resend from the internet — enable `ingre
 RESEND_WEBHOOK_SECRET=whsec_... docker compose up --build
 ```
 
-Brings up the exporter, Prometheus (with [example alert rules](examples/prometheus/alerts.yml)), and Grafana on `localhost:3000`.
+Brings up the exporter, Prometheus (with [example alert rules](examples/prometheus/alerts.yml)), and Grafana on `localhost:3000` with the [bundled dashboard](examples/grafana/dashboards/resend-exporter.json) preloaded.
 
 ## Configuration
 
@@ -102,7 +102,7 @@ Ready-made PromQL alert rules for failed, bounced, and delayed email: [docs/aler
 
 - Optional Resend API reconciliation: backfill missed events after downtime, verify webhook configuration, and enrich sparse events (`RESEND_API_KEY` is already reserved for this)
 - Delivery-delay histogram and bounce-type breakdown metrics
-- Grafana dashboard JSON and PrometheusRule manifests
+- PrometheusRule manifests
 
 Non-goals: replacing the Resend dashboard, storing email content, and sending alert notifications directly — routing belongs in Grafana Alerting, Alertmanager, ntfy, Slack, or PagerDuty.
 
