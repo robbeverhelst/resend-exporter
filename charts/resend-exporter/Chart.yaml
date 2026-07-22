@@ -1,0 +1,14 @@
+apiVersion: v2
+name: resend-exporter
+description: Prometheus exporter and webhook receiver for Resend email events
+type: application
+# version and appVersion are placeholders; the release workflow packages the
+# chart with the semantic-release version.
+version: 0.0.0
+appVersion: 0.0.0
+home: https://github.com/robbeverhelst/resend-exporter
+sources:
+  - https://github.com/robbeverhelst/resend-exporter
+maintainers:
+  - name: robbeverhelst
+    url: https://github.com/robbeverhelst

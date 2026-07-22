@@ -1,8 +1,12 @@
 # resend-exporter
 
+[![CI](https://github.com/robbeverhelst/resend-exporter/actions/workflows/ci.yaml/badge.svg)](https://github.com/robbeverhelst/resend-exporter/actions/workflows/ci.yaml)
+[![Release](https://github.com/robbeverhelst/resend-exporter/actions/workflows/release.yaml/badge.svg)](https://github.com/robbeverhelst/resend-exporter/actions/workflows/release.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Prometheus exporter and webhook receiver for [Resend](https://resend.com) email events.
 
-`resend-exporter` receives Resend webhook events, verifies their signatures, exposes Prometheus metrics, and emits structured logs that can be shipped to Loki or any other log pipeline.
+`resend-exporter` receives Resend webhook events, verifies their [Svix](https://docs.svix.com) signatures, exposes Prometheus metrics on `/metrics`, and emits structured JSON logs that can be shipped to Loki or any other log pipeline.
 
 The main use case is alerting on transactional email delivery problems in Grafana/Prometheus:
 
@@ -11,236 +15,97 @@ The main use case is alerting on transactional email delivery problems in Grafan
 - delivery delays that persist long enough to matter
 - spam complaints or suppression-related events
 
-## Status
+Metrics answer "how many, and is it bad enough to alert". Logs answer "which email broke and why". Prometheus never becomes a database of email subjects and recipients: labels stay low-cardinality by construction, and sensitive values are redacted or hashed in logs by default.
 
-Specification-only repository. Implementation not started yet.
+## How it works
 
-## Goals
+```
+Resend ──POST /webhooks/resend──▶ resend-exporter ──▶ /metrics ──▶ Prometheus ──▶ Grafana alerts
+         (Svix-signed events)          │
+                                       └──▶ structured JSON logs ──▶ Loki (optional)
+```
 
-- Receive Resend webhook events over HTTP.
-- Verify webhook signatures before accepting events.
-- Expose Prometheus metrics on `/metrics`.
-- Emit structured JSON logs for operational detail and debugging.
-- Keep labels low-cardinality and safe for public dashboards.
-- Support Grafana alerting examples for bounced, failed, and delayed emails.
-- Optionally use the Resend API for reconciliation, enrichment, and webhook configuration checks.
-- Be generic enough for any Resend user, not tied to one application.
-
-## Non-Goals
-
-- Replacing Resend's dashboard.
-- Storing full email content.
-- Sending alert notifications directly.
-- Acting as a general webhook automation platform.
-- Depending on Grafana, Loki, or Kubernetes at runtime.
-- Requiring a Resend API key for basic webhook-only operation.
-
-Alert routing belongs in Grafana Alerting, Alertmanager, ntfy, Slack, Telegram, PagerDuty, or whatever the operator already uses.
-
-## Proposed HTTP Endpoints
-
-| Method | Path | Purpose |
-| --- | --- | --- |
+| Method | Path               | Purpose                       |
+| ------ | ------------------ | ----------------------------- |
 | `POST` | `/webhooks/resend` | Receive Resend webhook events |
-| `GET` | `/metrics` | Prometheus metrics |
-| `GET` | `/healthz` | Liveness probe |
-| `GET` | `/readyz` | Readiness probe |
+| `GET`  | `/metrics`         | Prometheus metrics            |
+| `GET`  | `/healthz`         | Liveness probe                |
+| `GET`  | `/readyz`          | Readiness probe               |
 
-## Supported Resend Events
+## Quickstart
 
-Initial event support should focus on delivery health:
+### Docker
 
-- `email.sent`
-- `email.delivered`
-- `email.delivery_delayed`
-- `email.bounced`
-- `email.failed`
-- `email.complained`
-
-Later support can include:
-
-- `email.opened`
-- `email.clicked`
-- `email.received`
-- domain events
-- contact/audience events
-
-## Optional Resend API Usage
-
-The exporter should work without a Resend API key when used as a pure webhook receiver.
-
-When `RESEND_API_KEY` is configured, the exporter can use the Resend API for stronger monitoring:
-
-- backfill events after exporter downtime
-- reconcile recent sent emails against received webhook events
-- enrich sparse webhook events with sent-email or log details
-- verify webhook configuration still includes critical events
-- expose domain or configuration health metrics
-
-Useful API surfaces:
-
-- `GET /emails` - list sent emails
-- `GET /emails/:id` - retrieve a sent email
-- `GET /logs` - list delivery/log records
-- `GET /webhooks` - list configured webhooks
-- `POST /webhooks` / update / delete - manage webhook configuration
-
-API usage should be optional because webhook-only deployments are simpler and need fewer permissions.
-
-### Reconciliation Mode
-
-Reconciliation mode should periodically look back over a small time window and compare Resend's API state with locally observed webhook events.
-
-Example use cases:
-
-- the exporter was down while Resend retried and eventually bounced an email
-- a webhook delivery failed or expired before reaching the exporter
-- a deployment lost in-memory counters and needs a recent baseline
-
-Suggested configuration:
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `RESEND_API_KEY` | no | Enables Resend API features |
-| `RESEND_EXPORTER_RECONCILE_ENABLED` | no | Enable periodic API reconciliation |
-| `RESEND_EXPORTER_RECONCILE_INTERVAL` | no | Reconciliation interval, default `5m` |
-| `RESEND_EXPORTER_RECONCILE_LOOKBACK` | no | API lookback window, default `1h` |
-
-Suggested metrics:
-
-```text
-resend_reconcile_runs_total{status="success"}
-resend_reconcile_errors_total{reason="api_error"}
-resend_reconcile_last_success_timestamp_seconds
-resend_webhook_configured{event_type="email.bounced"} 1
+```sh
+docker run -p 8080:8080 \
+  -e RESEND_WEBHOOK_SECRET=whsec_... \
+  ghcr.io/robbeverhelst/resend-exporter:latest
 ```
 
-## Proposed Metrics
+Point a Resend webhook at `https://your-host/webhooks/resend`, then scrape `http://your-host:8080/metrics`.
 
-Metrics should avoid high-cardinality labels such as full recipient email, subject, or Resend email ID.
+### Helm
 
-```text
-resend_webhook_events_total{
-  event_type="email.bounced",
-  domain="example.com"
-}
-
-resend_email_events_total{
-  event_type="email.failed",
-  from_domain="example.com",
-  to_domain="outlook.com"
-}
-
-resend_webhook_signature_failures_total
-
-resend_webhook_handler_errors_total{
-  reason="invalid_json"
-}
-
-resend_webhook_last_event_timestamp_seconds{
-  event_type="email.delivered"
-}
+```sh
+helm install resend-exporter oci://ghcr.io/robbeverhelst/charts/resend-exporter \
+  --set resend.webhookSecret=whsec_... \
+  --set serviceMonitor.enabled=true
 ```
 
-Optional future metrics:
+The webhook path must be reachable by Resend from the internet — enable `ingress` in the chart values or bring your own route. See [docs/deployment.md](docs/deployment.md).
 
-```text
-resend_email_delivery_delay_seconds_bucket
-resend_email_bounces_total{bounce_type="hard", bounce_subtype="NoEmail"}
-resend_email_failures_total{reason="quota_exceeded"}
-resend_email_complaints_total
+### Local playground
+
+```sh
+RESEND_WEBHOOK_SECRET=whsec_... docker compose up --build
 ```
 
-## Structured Logs
-
-Metrics answer "how many" and "is this bad enough to alert".
-
-Logs answer "which email broke and why".
-
-Each accepted event should produce one JSON log line with fields similar to:
-
-```json
-{
-  "level": "warn",
-  "event_type": "email.bounced",
-  "resend_email_id": "3ebe19b6-1dcc-4534-8442-9dc689ee439b",
-  "from_domain": "example.com",
-  "to_domain": "outlook.be",
-  "to_hash": "sha256:...",
-  "subject_hash": "sha256:...",
-  "reason": "Recipient mail server not found",
-  "timestamp": "2026-07-21T00:24:00Z"
-}
-```
-
-By default, sensitive values should be redacted or hashed:
-
-- full recipient email
-- full sender email
-- subject
-- webhook payload body
-
-Operators can opt into less redaction for private deployments.
+Brings up the exporter, Prometheus (with [example alert rules](examples/prometheus/alerts.yml)), and Grafana on `localhost:3000`.
 
 ## Configuration
 
-Suggested environment variables:
+| Variable                              | Required | Default            | Description                                                        |
+| ------------------------------------- | -------- | ------------------ | ------------------------------------------------------------------ |
+| `RESEND_WEBHOOK_SECRET`               | yes      | —                  | Svix signing secret (`whsec_...`) from the Resend webhook settings |
+| `RESEND_EXPORTER_ADDR`                | no       | `:8080`            | Listen address (`host:port` or `:port`)                            |
+| `RESEND_EXPORTER_WEBHOOK_PATH`        | no       | `/webhooks/resend` | Webhook path                                                       |
+| `RESEND_EXPORTER_METRICS_PATH`        | no       | `/metrics`         | Metrics path                                                       |
+| `RESEND_EXPORTER_LOG_LEVEL`           | no       | `info`             | `debug`, `info`, `warn`, `error`                                   |
+| `RESEND_EXPORTER_REDACTION_MODE`      | no       | `strict`           | `strict`, `hash`, or `none`                                        |
+| `RESEND_EXPORTER_TO_DOMAIN_ALLOWLIST` | no       | —                  | Extra recipient domains kept as their own `to_domain` label value  |
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `RESEND_WEBHOOK_SECRET` | yes | Secret used to verify Resend webhook signatures |
-| `RESEND_API_KEY` | no | Enables API reconciliation, enrichment, and config checks |
-| `RESEND_EXPORTER_ADDR` | no | Listen address, default `:8080` |
-| `RESEND_EXPORTER_WEBHOOK_PATH` | no | Webhook path, default `/webhooks/resend` |
-| `RESEND_EXPORTER_METRICS_PATH` | no | Metrics path, default `/metrics` |
-| `RESEND_EXPORTER_LOG_LEVEL` | no | `debug`, `info`, `warn`, `error` |
-| `RESEND_EXPORTER_REDACTION_MODE` | no | `strict`, `hash`, or `none`; default `strict` |
+Full reference: [docs/configuration.md](docs/configuration.md).
 
-## Grafana Alert Examples
+## Metrics
 
-### Any Failed Email
-
-Alert when any email fails to send:
-
-```promql
-increase(resend_email_events_total{event_type="email.failed"}[5m]) > 0
+```text
+resend_webhook_events_total{event_type="email.bounced",domain="example.com"}
+resend_email_events_total{event_type="email.bounced",from_domain="example.com",to_domain="outlook.com"}
+resend_webhook_signature_failures_total
+resend_webhook_handler_errors_total{reason="invalid_json"}
+resend_webhook_last_event_timestamp_seconds{event_type="email.delivered"}
 ```
 
-### Any Bounced Transactional Email
+Recipient domains are bucketed: well-known consumer providers (gmail.com, outlook.com, …) keep their own `to_domain` value, everything else becomes `other`, so one busy adopter can't blow up label cardinality. Details: [docs/metrics.md](docs/metrics.md).
 
-Alert when a transactional email bounces:
+Ready-made PromQL alert rules for failed, bounced, and delayed email: [docs/alerting.md](docs/alerting.md).
 
-```promql
-increase(resend_email_events_total{event_type="email.bounced"}[5m]) > 0
-```
+## Documentation
 
-### Repeated Delivery Delays
+- [Configuration](docs/configuration.md) — every environment variable, redaction modes
+- [Metrics](docs/metrics.md) — metric reference and cardinality design
+- [Alerting](docs/alerting.md) — PromQL alert examples for Grafana/Alertmanager
+- [Deployment](docs/deployment.md) — Docker, Helm, docker-compose, exposing the webhook
+- [Development](docs/development.md) — building, testing, and the release process
 
-Alert when delivery delays accumulate:
+## Roadmap
 
-```promql
-increase(resend_email_events_total{event_type="email.delivery_delayed"}[30m]) >= 3
-```
+- Optional Resend API reconciliation: backfill missed events after downtime, verify webhook configuration, and enrich sparse events (`RESEND_API_KEY` is already reserved for this)
+- Delivery-delay histogram and bounce-type breakdown metrics
+- Grafana dashboard JSON and PrometheusRule manifests
 
-## Deployment Ideas
-
-The project should eventually ship:
-
-- single static binary
-- Docker image
-- Helm chart
-- Kubernetes manifests
-- Grafana dashboard JSON
-- PrometheusRule examples
-
-## Design Notes
-
-This project should act like a normal Prometheus exporter even though it receives webhook events instead of polling an API.
-
-The webhook receiver updates in-memory counters and gauges. Prometheus scrapes `/metrics`. Detailed event data is emitted as logs, not labels.
-
-That split keeps alerting reliable without turning Prometheus into a database of email subjects and recipients.
+Non-goals: replacing the Resend dashboard, storing email content, and sending alert notifications directly — routing belongs in Grafana Alerting, Alertmanager, ntfy, Slack, or PagerDuty.
 
 ## License
 
-TBD.
+[MIT](LICENSE)

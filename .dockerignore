@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.git
+.github
+charts
+docs
+examples
+*.md
+compose.yaml
+.env
+.env.*
