@@ -58,6 +58,12 @@ RESEND_WEBHOOK_SECRET=whsec_... docker compose up --build
 
 To exercise it end-to-end, expose port 8080 with a tunnel (e.g. `cloudflared tunnel` or `ngrok http 8080`) and point a Resend webhook at the tunnel URL + `/webhooks/resend`.
 
+## Grafana dashboard
+
+A ready-made dashboard ships at [`examples/grafana/dashboards/resend-exporter.json`](../examples/grafana/dashboards/resend-exporter.json): headline stats (delivered / bounced / failed / complaints / delayed / time since last event), event rates by type, delivery problems over time, bounces by recipient provider, per-domain volume, and webhook pipeline health (signature failures, handler errors).
+
+The compose playground provisions it automatically. In your own Grafana: **Dashboards → New → Import**, upload the JSON, and pick your Prometheus datasource (the dashboard asks — it's templated, not hardcoded). It also works with a dashboard sidecar (e.g. kube-prometheus-stack's `grafana.sidecar.dashboards`) by mounting the JSON in a ConfigMap labeled `grafana_dashboard: "1"`.
+
 ## Standalone binary
 
 Each release attaches self-contained binaries (no Bun installation needed) for Linux and macOS, x64 and arm64:

@@ -29,5 +29,6 @@ services:
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
     volumes:
       - ./examples/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./examples/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
