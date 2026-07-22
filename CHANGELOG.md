@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.0...v0.2.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* dashboard no-data bar panels, plus README landing page ([#3](https://github.com/robbeverhelst/resend-exporter/issues/3)) ([578a35f](https://github.com/robbeverhelst/resend-exporter/commit/578a35fa0c23114b2234a840b7496ae1c86c1511))
+
 # [0.2.0](https://github.com/robbeverhelst/resend-exporter/compare/v0.1.0...v0.2.0) (2026-07-22)
 
 
