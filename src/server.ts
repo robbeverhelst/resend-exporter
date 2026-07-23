@@ -17,6 +17,9 @@ export function createServer(config: Config, logger: Logger, port: number = conf
   const server = Bun.serve({
     hostname: config.hostname,
     port,
+    // Resend webhook payloads are a few KB; cap far below Bun's 128 MB
+    // default so the internet-facing endpoint can't be fed huge bodies.
+    maxRequestBodySize: 1024 * 1024,
     routes: {
       [config.webhookPath]: { POST: handleWebhook },
       [config.metricsPath]: {

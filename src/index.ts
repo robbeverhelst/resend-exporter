@@ -1,6 +1,7 @@
 import { loadConfig } from "./config.ts";
 import { createLogger } from "./logger.ts";
 import { createServer } from "./server.ts";
+import { VERSION } from "./version.ts";
 
 function main(): void {
   let config;
@@ -22,6 +23,7 @@ function main(): void {
   process.on("SIGINT", () => shutdown("SIGINT"));
 
   logger.info("resend-exporter listening", {
+    version: VERSION,
     addr: `${config.hostname}:${config.port}`,
     webhook_path: config.webhookPath,
     metrics_path: config.metricsPath,

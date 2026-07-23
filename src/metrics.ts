@@ -1,4 +1,5 @@
 import { Counter, Gauge, Registry } from "prom-client";
+import { VERSION } from "./version.ts";
 
 export interface Metrics {
   registry: Registry;
@@ -100,6 +101,13 @@ export function createMetrics(): Metrics {
       };
     },
   };
+
+  new Gauge({
+    name: "resend_exporter_build_info",
+    help: "Build information about the exporter; always 1.",
+    labelNames: ["version"],
+    registers: [registry],
+  }).set({ version: VERSION }, 1);
 
   // Fixed-label series exist from process start; the first scrape observes
   // their 0 so later increments are always visible to increase().
