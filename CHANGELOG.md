@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.1...v0.2.2) (2026-07-23)
+
+
+### Bug Fixes
+
+* pre-create counter series so increase() sees first-ever events ([#4](https://github.com/robbeverhelst/resend-exporter/issues/4)) ([4d6455d](https://github.com/robbeverhelst/resend-exporter/commit/4d6455d9160cadc1b3b371c5a8d1a9a1dff40c7d))
+
 ## [0.2.1](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.0...v0.2.1) (2026-07-22)
 
 
