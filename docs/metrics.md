@@ -2,7 +2,12 @@
 
 All metrics are served on `RESEND_EXPORTER_METRICS_PATH` (default `/metrics`) in the Prometheus text format. Counters are in-memory and reset on restart — that is normal for Prometheus exporters; use `increase()`/`rate()` in queries.
 
-To keep `increase()`/`rate()` honest for low-volume senders, the exporter pre-creates series at 0: when any event arrives for a domain, all six standard event-type series are created for that label set, so the first-ever bounce or failure for a known domain is a visible 0→1 increment rather than an invisible series birth (a series that appears mid-window at a nonzero value contributes nothing to `increase()`). The one unavoidable gap: the very first event for a brand-new domain (almost always `email.sent`) is itself a birth and undercounts by one.
+To keep `increase()`/`rate()` honest for low-volume senders, the exporter guarantees Prometheus always observes a series' 0 before any increment:
+
+1. When any event arrives for a domain, all six standard event-type series are created at 0 for that label set (a series that appears mid-window at a nonzero value contributes nothing to `increase()`).
+2. A brand-new series' first increments are deferred until its 0 has been scraped once — the first scrape sees 0, the next sees the real count. Every event is therefore countable by `increase()`; the trade-off is that a new series' first events appear one scrape interval (~15–30s) late.
+
+The bundled dashboard's count tiles additionally use exact sample deltas (`max_over_time(...) - min_over_time(...)`) instead of `increase()`, so they display true integers rather than rate-extrapolated estimates like `2.5`. (`increase()` remains the right choice for alert rules — it tolerates counter resets across pod restarts, where the sample-delta form can overcount within the restart window.)
 
 ## Reference
 

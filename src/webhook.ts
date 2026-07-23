@@ -43,9 +43,13 @@ const STANDARD_EMAIL_EVENTS = [
  */
 function ensureSeriesExist(metrics: Metrics, fromDomain: string, toDomain: string | undefined): void {
   for (const type of STANDARD_EMAIL_EVENTS) {
-    metrics.webhookEvents.inc({ event_type: type, domain: fromDomain }, 0);
+    metrics.ensureZero(metrics.webhookEvents, "webhook_events", { event_type: type, domain: fromDomain });
     if (toDomain !== undefined) {
-      metrics.emailEvents.inc({ event_type: type, from_domain: fromDomain, to_domain: toDomain }, 0);
+      metrics.ensureZero(metrics.emailEvents, "email_events", {
+        event_type: type,
+        from_domain: fromDomain,
+        to_domain: toDomain,
+      });
     }
   }
 }
@@ -106,18 +110,18 @@ export function createWebhookHandler({ config, metrics, logger, verifier }: Webh
       });
     } catch (error) {
       if (error instanceof SyntaxError) {
-        metrics.handlerErrors.inc({ reason: "invalid_json" });
+        metrics.inc(metrics.handlerErrors, "handler_errors", { reason: "invalid_json" });
         logger.warn("webhook payload is not valid JSON");
         return Response.json({ error: "invalid JSON" }, { status: 400 });
       }
-      metrics.signatureFailures.inc();
+      metrics.inc(metrics.signatureFailures, "signature_failures", {});
       logger.warn("webhook signature verification failed");
       return Response.json({ error: "invalid signature" }, { status: 401 });
     }
 
     const parsed = eventSchema.safeParse(json);
     if (!parsed.success) {
-      metrics.handlerErrors.inc({ reason: "invalid_payload" });
+      metrics.inc(metrics.handlerErrors, "handler_errors", { reason: "invalid_payload" });
       logger.warn("webhook payload has unexpected shape", {
         issues: parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`),
       });
@@ -134,11 +138,15 @@ export function createWebhookHandler({ config, metrics, logger, verifier }: Webh
       : undefined;
     ensureSeriesExist(metrics, fromDomain, toDomain);
 
-    metrics.webhookEvents.inc({ event_type: event.type, domain: fromDomain });
+    metrics.inc(metrics.webhookEvents, "webhook_events", { event_type: event.type, domain: fromDomain });
     metrics.lastEventTimestamp.set({ event_type: event.type }, Date.now() / 1000);
 
     if (isEmailEvent) {
-      metrics.emailEvents.inc({ event_type: event.type, from_domain: fromDomain, to_domain: toDomain! });
+      metrics.inc(metrics.emailEvents, "email_events", {
+        event_type: event.type,
+        from_domain: fromDomain,
+        to_domain: toDomain!,
+      });
     }
 
     const level = WARN_EVENTS.has(event.type) ? "warn" : "info";

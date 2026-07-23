@@ -34,9 +34,12 @@ describe("server", () => {
     });
     expect(res.status).toBe(200);
 
+    // First scrape observes the newborn series at 0 and flushes the deferred
+    // increments; the second scrape shows the real counts.
+    const firstRes = await fetch(`${base}/metrics`);
+    expect(firstRes.status).toBe(200);
+    expect(firstRes.headers.get("content-type")).toContain("text/plain");
     const metricsRes = await fetch(`${base}/metrics`);
-    expect(metricsRes.status).toBe(200);
-    expect(metricsRes.headers.get("content-type")).toContain("text/plain");
     const body = await metricsRes.text();
     expect(body).toContain('resend_webhook_events_total{event_type="email.bounced",domain="acme.example"} 1');
     expect(body).toContain(
