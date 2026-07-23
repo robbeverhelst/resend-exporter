@@ -1,3 +1,10 @@
+## [0.2.3](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.2...v0.2.3) (2026-07-23)
+
+
+### Bug Fixes
+
+* exact event counts — defer newborn-series increments, exact dashboard deltas ([#5](https://github.com/robbeverhelst/resend-exporter/issues/5)) ([9e81602](https://github.com/robbeverhelst/resend-exporter/commit/9e816024e864cffbf1c18837abd889b865e5910e))
+
 ## [0.2.2](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.1...v0.2.2) (2026-07-23)
 
 
