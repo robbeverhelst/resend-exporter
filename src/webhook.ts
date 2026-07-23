@@ -25,6 +25,31 @@ export type ResendEvent = z.infer<typeof eventSchema>;
 
 const WARN_EVENTS = new Set(["email.bounced", "email.failed", "email.complained"]);
 
+const STANDARD_EMAIL_EVENTS = [
+  "email.sent",
+  "email.delivered",
+  "email.delivery_delayed",
+  "email.bounced",
+  "email.failed",
+  "email.complained",
+] as const;
+
+/**
+ * Pre-creates every standard event-type series for a label set at 0, so the
+ * first bounce/failure/delay for a known domain is a visible 0→1 increment.
+ * Without this, a series born mid-window at a nonzero value is invisible to
+ * increase()/rate() — low-volume senders would see "0 bounced" on dashboards
+ * and alerts would miss the first-ever bounce per domain.
+ */
+function ensureSeriesExist(metrics: Metrics, fromDomain: string, toDomain: string | undefined): void {
+  for (const type of STANDARD_EMAIL_EVENTS) {
+    metrics.webhookEvents.inc({ event_type: type, domain: fromDomain }, 0);
+    if (toDomain !== undefined) {
+      metrics.emailEvents.inc({ event_type: type, from_domain: fromDomain, to_domain: toDomain }, 0);
+    }
+  }
+}
+
 function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value.trim().toLowerCase()).digest("hex")}`;
 }
@@ -103,12 +128,17 @@ export function createWebhookHandler({ config, metrics, logger, verifier }: Webh
     const fromDomain = domainOf(event.data?.from) ?? UNKNOWN_DOMAIN;
     const recipients = typeof event.data?.to === "string" ? [event.data.to] : (event.data?.to ?? []);
 
+    const isEmailEvent = event.type.startsWith("email.");
+    const toDomain = isEmailEvent
+      ? bucketToDomain(domainOf(recipients[0]), config.extraToDomains)
+      : undefined;
+    ensureSeriesExist(metrics, fromDomain, toDomain);
+
     metrics.webhookEvents.inc({ event_type: event.type, domain: fromDomain });
     metrics.lastEventTimestamp.set({ event_type: event.type }, Date.now() / 1000);
 
-    if (event.type.startsWith("email.")) {
-      const toDomain = bucketToDomain(domainOf(recipients[0]), config.extraToDomains);
-      metrics.emailEvents.inc({ event_type: event.type, from_domain: fromDomain, to_domain: toDomain });
+    if (isEmailEvent) {
+      metrics.emailEvents.inc({ event_type: event.type, from_domain: fromDomain, to_domain: toDomain! });
     }
 
     const level = WARN_EVENTS.has(event.type) ? "warn" : "info";

@@ -25,17 +25,17 @@ describe("webhook handler", () => {
     expect(res.status).toBe(200);
 
     const webhookEvents = await metrics.webhookEvents.get();
-    expect(webhookEvents.values).toEqual([
+    expect(webhookEvents.values).toContainEqual(
       expect.objectContaining({ value: 1, labels: { event_type: "email.bounced", domain: "acme.example" } }),
-    ]);
+    );
 
     const emailEvents = await metrics.emailEvents.get();
-    expect(emailEvents.values).toEqual([
+    expect(emailEvents.values).toContainEqual(
       expect.objectContaining({
         value: 1,
         labels: { event_type: "email.bounced", from_domain: "acme.example", to_domain: "outlook.com" },
       }),
-    ]);
+    );
 
     const lastEvent = await metrics.lastEventTimestamp.get();
     expect(lastEvent.values[0]?.value).toBeGreaterThan(Date.now() / 1000 - 60);
@@ -93,9 +93,9 @@ describe("webhook handler", () => {
     expect(res.status).toBe(400);
 
     const errors = await metrics.handlerErrors.get();
-    expect(errors.values).toEqual([
+    expect(errors.values).toContainEqual(
       expect.objectContaining({ value: 1, labels: { reason: "invalid_json" } }),
-    ]);
+    );
   });
 
   test("counts a payload without type as invalid_payload", async () => {
@@ -106,7 +106,9 @@ describe("webhook handler", () => {
     expect(res.status).toBe(400);
 
     const errors = await metrics.handlerErrors.get();
-    expect(errors.values[0]?.labels["reason"]).toBe("invalid_payload");
+    expect(errors.values).toContainEqual(
+      expect.objectContaining({ value: 1, labels: { reason: "invalid_payload" } }),
+    );
   });
 
   test("accepts non-email event types without email metrics", async () => {
@@ -116,8 +118,38 @@ describe("webhook handler", () => {
     const res = await post(payload, signPayload(payload));
     expect(res.status).toBe(200);
 
-    expect((await metrics.webhookEvents.get()).values[0]?.labels["event_type"]).toBe("domain.updated");
+    const webhookValues = (await metrics.webhookEvents.get()).values;
+    const domainUpdated = webhookValues.find((v) => v.labels["event_type"] === "domain.updated");
+    expect(domainUpdated?.value).toBe(1);
     expect((await metrics.emailEvents.get()).values).toHaveLength(0);
+  });
+
+  test("pre-creates all standard event series at 0 so increase() sees first events", async () => {
+    const { metrics, post } = setup();
+    const payload = JSON.stringify(bouncedEvent());
+
+    await post(payload, signPayload(payload));
+
+    const emailValues = (await metrics.emailEvents.get()).values;
+    const byType = new Map(emailValues.map((v) => [v.labels["event_type"], v.value]));
+    expect(byType.size).toBe(6);
+    expect(byType.get("email.bounced")).toBe(1);
+    for (const type of [
+      "email.sent",
+      "email.delivered",
+      "email.delivery_delayed",
+      "email.failed",
+      "email.complained",
+    ]) {
+      expect(byType.get(type)).toBe(0);
+    }
+    for (const v of emailValues) {
+      expect(v.labels["from_domain"]).toBe("acme.example");
+      expect(v.labels["to_domain"]).toBe("outlook.com");
+    }
+
+    const webhookValues = (await metrics.webhookEvents.get()).values;
+    expect(webhookValues).toHaveLength(6);
   });
 });
 
