@@ -36,15 +36,18 @@ helm install resend-exporter oci://ghcr.io/robbeverhelst/charts/resend-exporter 
 
 Useful values (see [`charts/resend-exporter/values.yaml`](../charts/resend-exporter/values.yaml) for everything):
 
-| Value                                                | Default              | Purpose                                                         |
-| ---------------------------------------------------- | -------------------- | --------------------------------------------------------------- |
-| `resend.existingSecret` / `resend.existingSecretKey` | — / `webhook-secret` | Use a pre-created Secret                                        |
-| `serviceMonitor.enabled`                             | `false`              | Create a Prometheus Operator ServiceMonitor                     |
-| `ingress.enabled`                                    | `false`              | Expose the webhook path; defaults route only `/webhooks/resend` |
-| `config.redactionMode`                               | `strict`             | Log redaction mode                                              |
-| `config.toDomainAllowlist`                           | `[]`                 | Extra `to_domain` label values                                  |
+| Value                                                | Default              | Purpose                                                                                                                                                    |
+| ---------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resend.existingSecret` / `resend.existingSecretKey` | — / `webhook-secret` | Use a pre-created Secret                                                                                                                                   |
+| `serviceMonitor.enabled`                             | `false`              | Create a Prometheus Operator ServiceMonitor                                                                                                                |
+| `prometheusRule.enabled`                             | `false`              | Create a PrometheusRule with the bundled alerts (override via `prometheusRule.rules`; set `prometheusRule.labels` to match your Prometheus `ruleSelector`) |
+| `ingress.enabled`                                    | `false`              | Expose the webhook path; defaults route only `/webhooks/resend`                                                                                            |
+| `config.redactionMode`                               | `strict`             | Log redaction mode                                                                                                                                         |
+| `config.toDomainAllowlist`                           | `[]`                 | Extra `to_domain` label values                                                                                                                             |
 
 The chart applies a restrictive security context by default (nonroot, read-only root filesystem, all capabilities dropped).
+
+Running multiple replicas is safe: Resend delivers each webhook to exactly one pod, so counters split across replicas and any `sum()`-based query (the bundled dashboard and alerts already aggregate this way) stays correct.
 
 ## docker-compose playground
 

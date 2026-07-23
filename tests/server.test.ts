@@ -46,6 +46,7 @@ describe("server", () => {
       'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 1',
     );
     expect(body).toContain("resend_webhook_last_event_timestamp_seconds");
+    expect(body).toContain('resend_exporter_build_info{version="dev"} 1');
   });
 
   test("webhook route only accepts POST", async () => {

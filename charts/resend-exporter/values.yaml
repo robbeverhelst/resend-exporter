@@ -1,3 +1,6 @@
+# Each webhook delivery lands on exactly one pod, so counters split across
+# replicas and sum() in queries (as the bundled dashboard does) stays correct
+# with any replica count.
 replicaCount: 1
 
 image:
@@ -42,6 +45,17 @@ serviceMonitor:
   interval: 30s
   scrapeTimeout: 10s
   labels: {}
+
+prometheusRule:
+  # Requires the Prometheus Operator CRDs. Ships default alerts for failed,
+  # bounced, and repeatedly delayed emails plus webhook signature failures;
+  # override the full rule list via prometheusRule.rules.
+  enabled: false
+  # Extra labels, e.g. the label your Prometheus ruleSelector matches
+  # (kube-prometheus-stack default: release: <its release name>).
+  labels: {}
+  # Replaces the built-in rules entirely when set.
+  rules: []
 
 ingress:
   # Resend must be able to reach the webhook path from the internet.

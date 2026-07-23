@@ -18,6 +18,7 @@ The bundled dashboard's count tiles additionally use exact sample deltas (`max_o
 | `resend_webhook_signature_failures_total`     | counter | —                                        | Requests rejected because Svix signature verification failed. A steady rate means a wrong secret or unsigned traffic. |
 | `resend_webhook_handler_errors_total`         | counter | `reason`                                 | Authentic requests the handler could not process: `invalid_json`, `invalid_payload`.                                  |
 | `resend_webhook_last_event_timestamp_seconds` | gauge   | `event_type`                             | Unix timestamp of the most recently accepted event per type. Useful for "no events received lately" alerts.           |
+| `resend_exporter_build_info`                  | gauge   | `version`                                | Always 1; the label carries the exporter version (release builds inject it, source runs report `dev`).                |
 
 ## Event types
 
