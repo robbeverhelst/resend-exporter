@@ -2,6 +2,8 @@
 
 All metrics are served on `RESEND_EXPORTER_METRICS_PATH` (default `/metrics`) in the Prometheus text format. Counters are in-memory and reset on restart — that is normal for Prometheus exporters; use `increase()`/`rate()` in queries.
 
+To keep `increase()`/`rate()` honest for low-volume senders, the exporter pre-creates series at 0: when any event arrives for a domain, all six standard event-type series are created for that label set, so the first-ever bounce or failure for a known domain is a visible 0→1 increment rather than an invisible series birth (a series that appears mid-window at a nonzero value contributes nothing to `increase()`). The one unavoidable gap: the very first event for a brand-new domain (almost always `email.sent`) is itself a birth and undercounts by one.
+
 ## Reference
 
 | Metric                                        | Type    | Labels                                   | Description                                                                                                           |

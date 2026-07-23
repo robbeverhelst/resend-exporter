@@ -11,7 +11,7 @@ export interface Metrics {
 
 export function createMetrics(): Metrics {
   const registry = new Registry();
-  return {
+  const metrics: Metrics = {
     registry,
     webhookEvents: new Counter({
       name: "resend_webhook_events_total",
@@ -43,4 +43,10 @@ export function createMetrics(): Metrics {
       registers: [registry],
     }),
   };
+  // Expose fixed-label series from the first scrape so increase()/rate()
+  // see the first-ever failure as a 0→1 increment, not an invisible birth.
+  metrics.signatureFailures.inc(0);
+  metrics.handlerErrors.inc({ reason: "invalid_json" }, 0);
+  metrics.handlerErrors.inc({ reason: "invalid_payload" }, 0);
+  return metrics;
 }
