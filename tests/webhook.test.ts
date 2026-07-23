@@ -3,7 +3,7 @@ import { Webhook } from "svix";
 import { createLogger } from "../src/logger.ts";
 import { createMetrics } from "../src/metrics.ts";
 import { createWebhookHandler } from "../src/webhook.ts";
-import { bouncedEvent, signPayload, TEST_SECRET, testConfig } from "./helpers.ts";
+import { bouncedEvent, scrape, signPayload, TEST_SECRET, testConfig } from "./helpers.ts";
 
 function setup(configOverrides = {}) {
   const config = testConfig(configOverrides);
@@ -23,6 +23,7 @@ describe("webhook handler", () => {
 
     const res = await post(payload, signPayload(payload));
     expect(res.status).toBe(200);
+    await scrape(metrics);
 
     const webhookEvents = await metrics.webhookEvents.get();
     expect(webhookEvents.values).toContainEqual(
@@ -72,6 +73,7 @@ describe("webhook handler", () => {
 
     const res = await post(payload, { ...signPayload(payload), "svix-signature": "v1,bm90LXZhbGlk" });
     expect(res.status).toBe(401);
+    await scrape(metrics);
 
     const failures = await metrics.signatureFailures.get();
     expect(failures.values[0]?.value).toBe(1);
@@ -91,6 +93,7 @@ describe("webhook handler", () => {
 
     const res = await post(payload, signPayload(payload));
     expect(res.status).toBe(400);
+    await scrape(metrics);
 
     const errors = await metrics.handlerErrors.get();
     expect(errors.values).toContainEqual(
@@ -104,6 +107,7 @@ describe("webhook handler", () => {
 
     const res = await post(payload, signPayload(payload));
     expect(res.status).toBe(400);
+    await scrape(metrics);
 
     const errors = await metrics.handlerErrors.get();
     expect(errors.values).toContainEqual(
@@ -117,6 +121,7 @@ describe("webhook handler", () => {
 
     const res = await post(payload, signPayload(payload));
     expect(res.status).toBe(200);
+    await scrape(metrics);
 
     const webhookValues = (await metrics.webhookEvents.get()).values;
     const domainUpdated = webhookValues.find((v) => v.labels["event_type"] === "domain.updated");
@@ -129,6 +134,7 @@ describe("webhook handler", () => {
     const payload = JSON.stringify(bouncedEvent());
 
     await post(payload, signPayload(payload));
+    await scrape(metrics);
 
     const emailValues = (await metrics.emailEvents.get()).values;
     const byType = new Map(emailValues.map((v) => [v.labels["event_type"], v.value]));
@@ -150,6 +156,42 @@ describe("webhook handler", () => {
 
     const webhookValues = (await metrics.webhookEvents.get()).values;
     expect(webhookValues).toHaveLength(6);
+  });
+
+  test("defers a new series' first increment until its 0 has been scraped", async () => {
+    const { metrics, post } = setup();
+    const payload = JSON.stringify(bouncedEvent());
+
+    await post(payload, signPayload(payload));
+
+    // First scrape observes the 0 — the increment applies only afterwards.
+    const firstScrape = await scrape(metrics);
+    expect(firstScrape).toContain(
+      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 0',
+    );
+    const secondScrape = await scrape(metrics);
+    expect(secondScrape).toContain(
+      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 1',
+    );
+
+    // A second event on the now-scraped series counts immediately.
+    const payload2 = JSON.stringify(bouncedEvent());
+    await post(payload2, signPayload(payload2));
+    const thirdScrape = await scrape(metrics);
+    expect(thirdScrape).toContain(
+      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 2',
+    );
+  });
+
+  test("multiple events on an unscraped series all apply after the first scrape", async () => {
+    const { metrics, post } = setup();
+    const payloads = Array.from({ length: 3 }, () => JSON.stringify(bouncedEvent()));
+    await Promise.all(payloads.map((payload) => post(payload, signPayload(payload))));
+    await scrape(metrics);
+    const second = await scrape(metrics);
+    expect(second).toContain(
+      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 3',
+    );
   });
 });
 

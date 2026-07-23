@@ -83,7 +83,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(increase(resend_email_events_total{event_type=\"email.delivered\",from_domain=~\"$from_domain\"}[$__range]))",
+          "expr": "sum(max_over_time(resend_email_events_total{event_type=\"email.delivered\",from_domain=~\"$from_domain\"}[$__range]) - min_over_time(resend_email_events_total{event_type=\"email.delivered\",from_domain=~\"$from_domain\"}[$__range]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -149,7 +149,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(increase(resend_email_events_total{event_type=\"email.bounced\",from_domain=~\"$from_domain\"}[$__range]))",
+          "expr": "sum(max_over_time(resend_email_events_total{event_type=\"email.bounced\",from_domain=~\"$from_domain\"}[$__range]) - min_over_time(resend_email_events_total{event_type=\"email.bounced\",from_domain=~\"$from_domain\"}[$__range]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -215,7 +215,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(increase(resend_email_events_total{event_type=\"email.failed\",from_domain=~\"$from_domain\"}[$__range]))",
+          "expr": "sum(max_over_time(resend_email_events_total{event_type=\"email.failed\",from_domain=~\"$from_domain\"}[$__range]) - min_over_time(resend_email_events_total{event_type=\"email.failed\",from_domain=~\"$from_domain\"}[$__range]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -281,7 +281,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(increase(resend_email_events_total{event_type=\"email.complained\",from_domain=~\"$from_domain\"}[$__range]))",
+          "expr": "sum(max_over_time(resend_email_events_total{event_type=\"email.complained\",from_domain=~\"$from_domain\"}[$__range]) - min_over_time(resend_email_events_total{event_type=\"email.complained\",from_domain=~\"$from_domain\"}[$__range]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -347,7 +347,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(increase(resend_email_events_total{event_type=\"email.delivery_delayed\",from_domain=~\"$from_domain\"}[$__range]))",
+          "expr": "sum(max_over_time(resend_email_events_total{event_type=\"email.delivery_delayed\",from_domain=~\"$from_domain\"}[$__range]) - min_over_time(resend_email_events_total{event_type=\"email.delivery_delayed\",from_domain=~\"$from_domain\"}[$__range]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -912,7 +912,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (event_type) (increase(resend_email_events_total{event_type=~\"email.bounced|email.failed|email.complained|email.delivery_delayed\",from_domain=~\"$from_domain\"}[$__interval]))",
+          "expr": "sum by (event_type) (max_over_time(resend_email_events_total{event_type=~\"email.bounced|email.failed|email.complained|email.delivery_delayed\",from_domain=~\"$from_domain\"}[$__interval]) - min_over_time(resend_email_events_total{event_type=~\"email.bounced|email.failed|email.complained|email.delivery_delayed\",from_domain=~\"$from_domain\"}[$__interval]))",
           "legendFormat": "{{event_type}}",
           "refId": "A",
           "interval": "1m"
@@ -1006,7 +1006,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (to_domain) (increase(resend_email_events_total{event_type=\"email.bounced\",from_domain=~\"$from_domain\"}[$__interval]))",
+          "expr": "sum by (to_domain) (max_over_time(resend_email_events_total{event_type=\"email.bounced\",from_domain=~\"$from_domain\"}[$__interval]) - min_over_time(resend_email_events_total{event_type=\"email.bounced\",from_domain=~\"$from_domain\"}[$__interval]))",
           "legendFormat": "{{to_domain}}",
           "refId": "A",
           "interval": "1m"

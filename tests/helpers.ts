@@ -1,6 +1,15 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type { Config } from "../src/config.ts";
 import { loadConfig } from "../src/config.ts";
+import type { Metrics } from "../src/metrics.ts";
+
+/** Simulates one Prometheus scrape: renders /metrics and applies deferred increments. */
+export async function scrape(metrics: Metrics): Promise<string> {
+  const flush = metrics.prepareScrapeFlush();
+  const body = await metrics.registry.metrics();
+  flush();
+  return body;
+}
 
 export const TEST_SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
 

@@ -7,10 +7,35 @@ export interface Metrics {
   signatureFailures: Counter<string>;
   handlerErrors: Counter<"reason">;
   lastEventTimestamp: Gauge<"event_type">;
+  /** Create a series at 0 without incrementing it. */
+  ensureZero(counter: Counter<string>, name: string, labels: Record<string, string>): void;
+  /**
+   * Increment a counter, deferring the very first increment of a brand-new
+   * series until its 0 has been scraped once. A series born at a nonzero
+   * value is invisible to increase()/rate(); deferring guarantees Prometheus
+   * observes the 0→N transition, at the cost of the first event appearing
+   * one scrape interval late.
+   */
+  inc(counter: Counter<string>, name: string, labels: Record<string, string>): void;
+  /**
+   * Call before rendering /metrics. Returns a closure to call after
+   * rendering: it marks the rendered series as scraped and applies their
+   * deferred increments so the next scrape sees them.
+   */
+  prepareScrapeFlush(): () => void;
 }
+
+const key = (name: string, labels: Record<string, string>) =>
+  `${name}|${Object.entries(labels)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(",")}`;
 
 export function createMetrics(): Metrics {
   const registry = new Registry();
+  const seen = new Set<string>();
+  const unscraped = new Set<string>();
+  let pending: Array<() => void> = [];
+
   const metrics: Metrics = {
     registry,
     webhookEvents: new Counter({
@@ -42,11 +67,44 @@ export function createMetrics(): Metrics {
       labelNames: ["event_type"],
       registers: [registry],
     }),
+    ensureZero(counter, name, labels) {
+      const k = key(name, labels);
+      if (!seen.has(k)) {
+        counter.inc(labels, 0);
+        seen.add(k);
+        unscraped.add(k);
+      }
+    },
+    inc(counter, name, labels) {
+      metrics.ensureZero(counter, name, labels);
+      const k = key(name, labels);
+      if (unscraped.has(k)) {
+        pending.push(() => counter.inc(labels));
+      } else {
+        counter.inc(labels);
+      }
+    },
+    prepareScrapeFlush() {
+      // Snapshot before rendering: series created or incremented while the
+      // render is in flight belong to the next scrape, not this one.
+      const flushPending = pending;
+      pending = [];
+      const flushKeys = [...unscraped];
+      return () => {
+        for (const k of flushKeys) {
+          unscraped.delete(k);
+        }
+        for (const apply of flushPending) {
+          apply();
+        }
+      };
+    },
   };
-  // Expose fixed-label series from the first scrape so increase()/rate()
-  // see the first-ever failure as a 0→1 increment, not an invisible birth.
-  metrics.signatureFailures.inc(0);
-  metrics.handlerErrors.inc({ reason: "invalid_json" }, 0);
-  metrics.handlerErrors.inc({ reason: "invalid_payload" }, 0);
+
+  // Fixed-label series exist from process start; the first scrape observes
+  // their 0 so later increments are always visible to increase().
+  metrics.ensureZero(metrics.signatureFailures, "signature_failures", {});
+  metrics.ensureZero(metrics.handlerErrors, "handler_errors", { reason: "invalid_json" });
+  metrics.ensureZero(metrics.handlerErrors, "handler_errors", { reason: "invalid_payload" });
   return metrics;
 }

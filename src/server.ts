@@ -20,10 +20,14 @@ export function createServer(config: Config, logger: Logger, port: number = conf
     routes: {
       [config.webhookPath]: { POST: handleWebhook },
       [config.metricsPath]: {
-        GET: async () =>
-          new Response(await metrics.registry.metrics(), {
+        GET: async () => {
+          const flush = metrics.prepareScrapeFlush();
+          const body = await metrics.registry.metrics();
+          flush();
+          return new Response(body, {
             headers: { "content-type": metrics.registry.contentType },
-          }),
+          });
+        },
       },
       "/healthz": { GET: () => new Response("ok") },
       "/readyz": { GET: () => new Response("ok") },
