@@ -1,3 +1,10 @@
+# [0.3.0](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.3...v0.3.0) (2026-07-23)
+
+
+### Features
+
+* add PrometheusRule to chart, build_info metric, request body cap ([#9](https://github.com/robbeverhelst/resend-exporter/issues/9)) ([ddd7443](https://github.com/robbeverhelst/resend-exporter/commit/ddd7443291beabd9c73b57beb6be3f06ae0e67dc))
+
 ## [0.2.3](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.2...v0.2.3) (2026-07-23)
 
 
