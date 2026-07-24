@@ -2,7 +2,7 @@ groups:
   - name: resend-exporter
     rules:
       - alert: ResendEmailFailed
-        expr: increase(resend_email_events_total{event_type="email.failed"}[5m]) > 0
+        expr: sum by (from_domain) (increase(resend_email_events_total{event_type="email.failed"}[5m])) > 0
         labels:
           severity: critical
         annotations:
@@ -12,7 +12,7 @@ groups:
             minutes. Check the exporter logs for the failure reason.
 
       - alert: ResendEmailBounced
-        expr: increase(resend_email_events_total{event_type="email.bounced"}[5m]) > 0
+        expr: sum by (from_domain, to_domain) (increase(resend_email_events_total{event_type="email.bounced"}[5m])) > 0
         labels:
           severity: warning
         annotations:
@@ -22,7 +22,7 @@ groups:
             {{ $labels.to_domain }} bounced in the last 5 minutes.
 
       - alert: ResendDeliveryDelays
-        expr: increase(resend_email_events_total{event_type="email.delivery_delayed"}[30m]) >= 3
+        expr: sum by (from_domain) (increase(resend_email_events_total{event_type="email.delivery_delayed"}[30m])) >= 3
         labels:
           severity: warning
         annotations:
@@ -32,7 +32,7 @@ groups:
             minutes.
 
       - alert: ResendWebhookSignatureFailures
-        expr: increase(resend_webhook_signature_failures_total[15m]) > 0
+        expr: sum(increase(resend_webhook_signature_failures_total[15m])) > 0
         labels:
           severity: warning
         annotations:

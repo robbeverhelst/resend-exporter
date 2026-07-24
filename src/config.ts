@@ -9,6 +9,7 @@ const envSchema = z.object({
   RESEND_EXPORTER_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   RESEND_EXPORTER_REDACTION_MODE: z.enum(["strict", "hash", "none"]).default("strict"),
   RESEND_EXPORTER_TO_DOMAIN_ALLOWLIST: z.string().default(""),
+  RESEND_EXPORTER_SERIES_HOLD_SECONDS: z.coerce.number().int().min(0).max(3600).default(60),
 });
 
 export type LogLevel = z.infer<typeof envSchema>["RESEND_EXPORTER_LOG_LEVEL"];
@@ -24,15 +25,24 @@ export interface Config {
   logLevel: LogLevel;
   redactionMode: RedactionMode;
   extraToDomains: Set<string>;
+  seriesHoldSeconds: number;
 }
 
 export function parseAddr(addr: string): { hostname: string; port: number } {
-  const idx = addr.lastIndexOf(":");
-  if (idx === -1) {
-    throw new Error(`invalid listen address ${JSON.stringify(addr)}, expected "host:port" or ":port"`);
-  }
-  const host = addr.slice(0, idx);
-  const port = Number(addr.slice(idx + 1));
+  // Bracketed IPv6: "[::]:8080", "[2001:db8::1]:8080".
+  const v6 = addr.match(/^\[(.+)\]:(\d+)$/);
+  const [host, portStr] = v6
+    ? [v6[1]!, v6[2]!]
+    : (() => {
+        const idx = addr.lastIndexOf(":");
+        if (idx === -1 || addr.slice(0, idx).includes(":")) {
+          throw new Error(
+            `invalid listen address ${JSON.stringify(addr)}, expected "host:port", ":port", or "[ipv6]:port"`,
+          );
+        }
+        return [addr.slice(0, idx), addr.slice(idx + 1)];
+      })();
+  const port = Number(portStr);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(`invalid port in listen address ${JSON.stringify(addr)}`);
   }
@@ -48,6 +58,16 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`invalid configuration: ${details}`);
   }
   const e = parsed.data;
+  const reserved = new Set(["/healthz", "/readyz"]);
+  if (
+    e.RESEND_EXPORTER_WEBHOOK_PATH === e.RESEND_EXPORTER_METRICS_PATH ||
+    reserved.has(e.RESEND_EXPORTER_WEBHOOK_PATH) ||
+    reserved.has(e.RESEND_EXPORTER_METRICS_PATH)
+  ) {
+    throw new Error(
+      "invalid configuration: webhook path, metrics path, /healthz, and /readyz must all be distinct",
+    );
+  }
   const { hostname, port } = parseAddr(e.RESEND_EXPORTER_ADDR);
   const extraToDomains = new Set(
     e.RESEND_EXPORTER_TO_DOMAIN_ALLOWLIST.split(",")
@@ -64,5 +84,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     logLevel: e.RESEND_EXPORTER_LOG_LEVEL,
     redactionMode: e.RESEND_EXPORTER_REDACTION_MODE,
     extraToDomains,
+    seriesHoldSeconds: e.RESEND_EXPORTER_SERIES_HOLD_SECONDS,
   };
 }

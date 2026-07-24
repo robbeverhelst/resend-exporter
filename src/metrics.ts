@@ -1,6 +1,26 @@
 import { Counter, Gauge, Registry } from "prom-client";
 import { VERSION } from "./version.ts";
 
+export const STANDARD_EMAIL_EVENTS = [
+  "email.sent",
+  "email.delivered",
+  "email.delivery_delayed",
+  "email.bounced",
+  "email.failed",
+  "email.complained",
+] as const;
+
+export interface MetricsOptions {
+  /**
+   * How long a brand-new series stays at its scrapeable 0 before deferred
+   * increments apply. Must be >= the longest scrape interval pointed at this
+   * exporter so every scraper observes the 0; see docs/metrics.md.
+   */
+  holdMs?: number;
+  /** Clock override for tests. */
+  now?: () => number;
+}
+
 export interface Metrics {
   registry: Registry;
   webhookEvents: Counter<"event_type" | "domain">;
@@ -11,19 +31,23 @@ export interface Metrics {
   /** Create a series at 0 without incrementing it. */
   ensureZero(counter: Counter<string>, name: string, labels: Record<string, string>): void;
   /**
-   * Increment a counter, deferring the very first increment of a brand-new
-   * series until its 0 has been scraped once. A series born at a nonzero
-   * value is invisible to increase()/rate(); deferring guarantees Prometheus
-   * observes the 0→N transition, at the cost of the first event appearing
-   * one scrape interval late.
+   * Increment a counter. Increments on a series younger than the hold window
+   * are buffered (bounded by series cardinality, not event volume) and apply
+   * once the series has been at 0 long enough for every scraper to have
+   * observed it — a series born at a nonzero value is invisible to
+   * increase()/rate(). Renders never consume the observation, so manual
+   * curls, uptime checkers, and HA scraper pairs are all safe.
    */
   inc(counter: Counter<string>, name: string, labels: Record<string, string>): void;
-  /**
-   * Call before rendering /metrics. Returns a closure to call after
-   * rendering: it marks the rendered series as scraped and applies their
-   * deferred increments so the next scrape sees them.
-   */
-  prepareScrapeFlush(): () => void;
+  /** Apply buffered increments for series older than the hold window. Called before each render. */
+  applyMature(): void;
+}
+
+interface Newborn {
+  counter: Counter<string>;
+  labels: Record<string, string>;
+  count: number;
+  bornAt: number;
 }
 
 const key = (name: string, labels: Record<string, string>) =>
@@ -31,11 +55,12 @@ const key = (name: string, labels: Record<string, string>) =>
     .map(([k, v]) => `${k}=${v}`)
     .join(",")}`;
 
-export function createMetrics(): Metrics {
+export function createMetrics(options: MetricsOptions = {}): Metrics {
+  const holdMs = options.holdMs ?? 60_000;
+  const now = options.now ?? Date.now;
   const registry = new Registry();
   const seen = new Set<string>();
-  const unscraped = new Set<string>();
-  let pending: Array<() => void> = [];
+  const newborn = new Map<string, Newborn>();
 
   const metrics: Metrics = {
     registry,
@@ -64,7 +89,7 @@ export function createMetrics(): Metrics {
     }),
     lastEventTimestamp: new Gauge({
       name: "resend_webhook_last_event_timestamp_seconds",
-      help: "Unix timestamp of the most recently accepted webhook event, by event type.",
+      help: "Unix timestamp of the most recently accepted webhook event (or process start), by event type.",
       labelNames: ["event_type"],
       registers: [registry],
     }),
@@ -73,32 +98,34 @@ export function createMetrics(): Metrics {
       if (!seen.has(k)) {
         counter.inc(labels, 0);
         seen.add(k);
-        unscraped.add(k);
+        newborn.set(k, { counter, labels, count: 0, bornAt: now() });
       }
     },
     inc(counter, name, labels) {
       metrics.ensureZero(counter, name, labels);
       const k = key(name, labels);
-      if (unscraped.has(k)) {
-        pending.push(() => counter.inc(labels));
-      } else {
+      const nb = newborn.get(k);
+      if (nb === undefined) {
         counter.inc(labels);
+        return;
+      }
+      if (now() - nb.bornAt >= holdMs) {
+        counter.inc(labels, nb.count + 1);
+        newborn.delete(k);
+      } else {
+        nb.count += 1;
       }
     },
-    prepareScrapeFlush() {
-      // Snapshot before rendering: series created or incremented while the
-      // render is in flight belong to the next scrape, not this one.
-      const flushPending = pending;
-      pending = [];
-      const flushKeys = [...unscraped];
-      return () => {
-        for (const k of flushKeys) {
-          unscraped.delete(k);
+    applyMature() {
+      const at = now();
+      for (const [k, nb] of newborn) {
+        if (at - nb.bornAt >= holdMs) {
+          if (nb.count > 0) {
+            nb.counter.inc(nb.labels, nb.count);
+          }
+          newborn.delete(k);
         }
-        for (const apply of flushPending) {
-          apply();
-        }
-      };
+      }
     },
   };
 
@@ -114,5 +141,13 @@ export function createMetrics(): Metrics {
   metrics.ensureZero(metrics.signatureFailures, "signature_failures", {});
   metrics.ensureZero(metrics.handlerErrors, "handler_errors", { reason: "invalid_json" });
   metrics.ensureZero(metrics.handlerErrors, "handler_errors", { reason: "invalid_payload" });
+
+  // Initialize per-type last-event timestamps to process start so staleness
+  // alerts (time() - metric > threshold) have a series to evaluate even
+  // before the first event after a restart.
+  for (const type of STANDARD_EMAIL_EVENTS) {
+    metrics.lastEventTimestamp.set({ event_type: type }, now() / 1000);
+  }
+
   return metrics;
 }

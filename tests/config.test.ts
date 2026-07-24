@@ -31,6 +31,19 @@ describe("loadConfig", () => {
     );
   });
 
+  test("rejects colliding or reserved paths", () => {
+    expect(() => loadConfig({ ...base, RESEND_EXPORTER_WEBHOOK_PATH: "/metrics" })).toThrow(/distinct/);
+    expect(() => loadConfig({ ...base, RESEND_EXPORTER_METRICS_PATH: "/healthz" })).toThrow(/distinct/);
+  });
+
+  test("parses the series hold window", () => {
+    expect(loadConfig(base).seriesHoldSeconds).toBe(60);
+    expect(loadConfig({ ...base, RESEND_EXPORTER_SERIES_HOLD_SECONDS: "120" }).seriesHoldSeconds).toBe(120);
+    expect(() => loadConfig({ ...base, RESEND_EXPORTER_SERIES_HOLD_SECONDS: "-5" })).toThrow(
+      /invalid configuration/,
+    );
+  });
+
   test("parses the extra to-domain allowlist", () => {
     const config = loadConfig({
       ...base,
@@ -49,9 +62,15 @@ describe("parseAddr", () => {
     expect(parseAddr("127.0.0.1:8081")).toEqual({ hostname: "127.0.0.1", port: 8081 });
   });
 
+  test("parses bracketed IPv6 addresses", () => {
+    expect(parseAddr("[::]:9090")).toEqual({ hostname: "::", port: 9090 });
+    expect(parseAddr("[2001:db8::1]:8080")).toEqual({ hostname: "2001:db8::1", port: 8080 });
+  });
+
   test("rejects a missing or invalid port", () => {
     expect(() => parseAddr("8080")).toThrow();
     expect(() => parseAddr(":http")).toThrow();
     expect(() => parseAddr(":70000")).toThrow();
+    expect(() => parseAddr("::1:8080")).toThrow(/ipv6/);
   });
 });

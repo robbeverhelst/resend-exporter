@@ -29,7 +29,7 @@ spec:
       http:
         paths:
           {{- range .paths }}
-          - path: {{ .path }}
+          - path: {{ .path | default $.Values.config.webhookPath }}
             pathType: {{ .pathType }}
             backend:
               service:

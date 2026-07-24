@@ -1,3 +1,6 @@
+{{- if not (or .Values.resend.webhookSecret .Values.resend.existingSecret) }}
+{{- fail "resend-exporter: set resend.webhookSecret or resend.existingSecret — the exporter cannot start without a webhook signing secret" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,10 +14,14 @@ spec:
       {{- include "resend-exporter.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        {{- if and .Values.resend.webhookSecret (not .Values.resend.existingSecret) }}
+        # Restart pods when the chart-managed secret changes on upgrade.
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "resend-exporter.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
