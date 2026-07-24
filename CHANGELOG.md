@@ -1,3 +1,14 @@
+# [1.0.0](https://github.com/robbeverhelst/resend-exporter/compare/v0.3.1...v1.0.0) (2026-07-24)
+
+
+* feat!: declare the v1 stable interface ([#13](https://github.com/robbeverhelst/resend-exporter/issues/13)) ([00015cb](https://github.com/robbeverhelst/resend-exporter/commit/00015cba7e3685c24679e817cb92ddeba1b34eec))
+
+
+### BREAKING CHANGES
+
+* this release declares the public interface stable and
+begins semver guarantees; no behavior changes.
+
 ## [0.3.1](https://github.com/robbeverhelst/resend-exporter/compare/v0.3.0...v0.3.1) (2026-07-24)
 
 
