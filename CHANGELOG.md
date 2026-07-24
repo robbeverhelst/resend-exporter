@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/robbeverhelst/resend-exporter/compare/v0.3.0...v0.3.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* address code review — hold-window metrics, PII scrub, alert aggregation, chart hardening ([#10](https://github.com/robbeverhelst/resend-exporter/issues/10)) ([b4dc261](https://github.com/robbeverhelst/resend-exporter/commit/b4dc2616d7adb847a4a3477a32c52328b5a1ffa2))
+
 # [0.3.0](https://github.com/robbeverhelst/resend-exporter/compare/v0.2.3...v0.3.0) (2026-07-23)
 
 
