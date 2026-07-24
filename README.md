@@ -119,6 +119,16 @@ Full reference and the cardinality design: [docs/metrics.md](docs/metrics.md). R
 - [Deployment](docs/deployment.md) — Docker, Helm, docker-compose, exposing the webhook
 - [Development](docs/development.md) — building, testing, and the release process
 
+## Stability
+
+resend-exporter follows [semver](https://semver.org). As of **1.0.0**, the following are stable interfaces — breaking changes to any of them mean a major release:
+
+- Configuration environment variables and their semantics
+- Metric names, types, and label sets
+- HTTP endpoints and their behavior (paths themselves are configurable)
+- Helm chart values
+- The structured log schema (field names; redaction guarantees)
+
 ## Roadmap
 
 - Optional Resend API reconciliation: backfill missed events after downtime, verify webhook configuration, and enrich sparse events (`RESEND_API_KEY` is already reserved for this)
