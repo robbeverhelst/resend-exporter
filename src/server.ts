@@ -10,7 +10,7 @@ export interface ExporterServer {
 }
 
 export function createServer(config: Config, logger: Logger, port: number = config.port): ExporterServer {
-  const metrics = createMetrics();
+  const metrics = createMetrics({ holdMs: config.seriesHoldSeconds * 1000 });
   const verifier = new Webhook(config.webhookSecret);
   const handleWebhook = createWebhookHandler({ config, metrics, logger, verifier });
 
@@ -24,10 +24,8 @@ export function createServer(config: Config, logger: Logger, port: number = conf
       [config.webhookPath]: { POST: handleWebhook },
       [config.metricsPath]: {
         GET: async () => {
-          const flush = metrics.prepareScrapeFlush();
-          const body = await metrics.registry.metrics();
-          flush();
-          return new Response(body, {
+          metrics.applyMature();
+          return new Response(await metrics.registry.metrics(), {
             headers: { "content-type": metrics.registry.contentType },
           });
         },

@@ -5,20 +5,20 @@ All metrics are served on `RESEND_EXPORTER_METRICS_PATH` (default `/metrics`) in
 To keep `increase()`/`rate()` honest for low-volume senders, the exporter guarantees Prometheus always observes a series' 0 before any increment:
 
 1. When any event arrives for a domain, all six standard event-type series are created at 0 for that label set (a series that appears mid-window at a nonzero value contributes nothing to `increase()`).
-2. A brand-new series' first increments are deferred until its 0 has been scraped once — the first scrape sees 0, the next sees the real count. Every event is therefore countable by `increase()`; the trade-off is that a new series' first events appear one scrape interval (~15–30s) late.
+2. A brand-new series' first increments are buffered until the series has been at 0 for `RESEND_EXPORTER_SERIES_HOLD_SECONDS` (default 60s) — long enough for every scraper to observe the 0, regardless of how many scrapers, manual curls, or uptime checkers hit `/metrics`. Every event is therefore countable by `increase()`; the trade-off is that a new series' first events appear up to one hold window late. Set the hold to at least your longest scrape interval.
 
-The bundled dashboard's count tiles additionally use exact sample deltas (`max_over_time(...) - min_over_time(...)`) instead of `increase()`, so they display true integers rather than rate-extrapolated estimates like `2.5`. (`increase()` remains the right choice for alert rules — it tolerates counter resets across pod restarts, where the sample-delta form can overcount within the restart window.)
+The bundled dashboard's count tiles use exact sample deltas (`max_over_time(...) - min_over_time(...)`) for windows without counter resets — true integers, no rate extrapolation — and automatically fall back to `round(increase(...))` for windows that contain a pod restart (detected via `resets()`). `increase()` remains the right choice for alert rules.
 
 ## Reference
 
-| Metric                                        | Type    | Labels                                   | Description                                                                                                           |
-| --------------------------------------------- | ------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `resend_webhook_events_total`                 | counter | `event_type`, `domain`                   | Every accepted webhook event. `domain` is the sending domain.                                                         |
-| `resend_email_events_total`                   | counter | `event_type`, `from_domain`, `to_domain` | Accepted `email.*` events. `to_domain` is bucketed (see below).                                                       |
-| `resend_webhook_signature_failures_total`     | counter | —                                        | Requests rejected because Svix signature verification failed. A steady rate means a wrong secret or unsigned traffic. |
-| `resend_webhook_handler_errors_total`         | counter | `reason`                                 | Authentic requests the handler could not process: `invalid_json`, `invalid_payload`.                                  |
-| `resend_webhook_last_event_timestamp_seconds` | gauge   | `event_type`                             | Unix timestamp of the most recently accepted event per type. Useful for "no events received lately" alerts.           |
-| `resend_exporter_build_info`                  | gauge   | `version`                                | Always 1; the label carries the exporter version (release builds inject it, source runs report `dev`).                |
+| Metric                                        | Type    | Labels                                   | Description                                                                                                                                                                                    |
+| --------------------------------------------- | ------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resend_webhook_events_total`                 | counter | `event_type`, `domain`                   | Every accepted webhook event. `domain` is the sending domain.                                                                                                                                  |
+| `resend_email_events_total`                   | counter | `event_type`, `from_domain`, `to_domain` | Accepted `email.*` events. `to_domain` is bucketed (see below).                                                                                                                                |
+| `resend_webhook_signature_failures_total`     | counter | —                                        | Requests rejected because Svix signature verification failed. A steady rate means a wrong secret or unsigned traffic.                                                                          |
+| `resend_webhook_handler_errors_total`         | counter | `reason`                                 | Authentic requests the handler could not process: `invalid_json`, `invalid_payload`.                                                                                                           |
+| `resend_webhook_last_event_timestamp_seconds` | gauge   | `event_type`                             | Unix timestamp of the most recently accepted event per type, initialized to process start so staleness alerts always have a series to evaluate. Useful for "no events received lately" alerts. |
+| `resend_exporter_build_info`                  | gauge   | `version`                                | Always 1; the label carries the exporter version (release builds inject it, source runs report `dev`).                                                                                         |
 
 ## Event types
 

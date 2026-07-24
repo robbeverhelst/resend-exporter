@@ -65,7 +65,9 @@ ingress:
   hosts:
     - host: resend-exporter.example.com
       paths:
-        - path: /webhooks/resend
+        # path defaults to config.webhookPath when empty, so overriding the
+        # webhook path automatically moves the ingress route with it.
+        - path: ""
           pathType: Prefix
   tls: []
 

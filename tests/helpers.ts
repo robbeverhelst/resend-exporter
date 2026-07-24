@@ -3,19 +3,19 @@ import type { Config } from "../src/config.ts";
 import { loadConfig } from "../src/config.ts";
 import type { Metrics } from "../src/metrics.ts";
 
-/** Simulates one Prometheus scrape: renders /metrics and applies deferred increments. */
+/** Simulates one Prometheus scrape: applies mature increments, then renders /metrics. */
 export async function scrape(metrics: Metrics): Promise<string> {
-  const flush = metrics.prepareScrapeFlush();
-  const body = await metrics.registry.metrics();
-  flush();
-  return body;
+  metrics.applyMature();
+  return metrics.registry.metrics();
 }
 
 export const TEST_SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
 
 export function testConfig(overrides: Partial<Config> = {}): Config {
   return {
-    ...loadConfig({ RESEND_WEBHOOK_SECRET: TEST_SECRET }),
+    // Hold window disabled in tests so counters are immediately visible;
+    // deferral behavior is tested explicitly with an injected clock.
+    ...loadConfig({ RESEND_WEBHOOK_SECRET: TEST_SECRET, RESEND_EXPORTER_SERIES_HOLD_SECONDS: "0" }),
     ...overrides,
   };
 }

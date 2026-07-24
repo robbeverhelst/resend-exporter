@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { Webhook } from "svix";
 import { createLogger } from "../src/logger.ts";
-import { createMetrics } from "../src/metrics.ts";
+import { createMetrics, type MetricsOptions } from "../src/metrics.ts";
 import { createWebhookHandler } from "../src/webhook.ts";
 import { bouncedEvent, scrape, signPayload, TEST_SECRET, testConfig } from "./helpers.ts";
 
-function setup(configOverrides = {}) {
+const bouncedLine = (n: number) =>
+  `resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} ${n}`;
+
+function setup(configOverrides = {}, metricsOptions: MetricsOptions = { holdMs: 0 }) {
   const config = testConfig(configOverrides);
-  const metrics = createMetrics();
+  const metrics = createMetrics(metricsOptions);
   const lines: string[] = [];
   const logger = createLogger("debug", (line) => lines.push(line));
   const handler = createWebhookHandler({ config, metrics, logger, verifier: new Webhook(TEST_SECRET) });
@@ -158,40 +161,63 @@ describe("webhook handler", () => {
     expect(webhookValues).toHaveLength(6);
   });
 
-  test("defers a new series' first increment until its 0 has been scraped", async () => {
-    const { metrics, post } = setup();
+  test("holds a new series at 0 for the hold window, for any number of readers", async () => {
+    let clock = 0;
+    const { metrics, post } = setup({}, { holdMs: 10_000, now: () => clock });
     const payload = JSON.stringify(bouncedEvent());
 
     await post(payload, signPayload(payload));
 
-    // First scrape observes the 0 — the increment applies only afterwards.
-    const firstScrape = await scrape(metrics);
-    expect(firstScrape).toContain(
-      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 0',
-    );
-    const secondScrape = await scrape(metrics);
-    expect(secondScrape).toContain(
-      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 1',
-    );
+    // Every render inside the hold window sees 0 — a curl or a second
+    // scraper cannot consume the observation.
+    expect(await scrape(metrics)).toContain(bouncedLine(0));
+    clock = 5_000;
+    expect(await scrape(metrics)).toContain(bouncedLine(0));
 
-    // A second event on the now-scraped series counts immediately.
+    // After the hold window the buffered increment applies.
+    clock = 10_001;
+    expect(await scrape(metrics)).toContain(bouncedLine(1));
+
+    // Events on a mature series count immediately.
     const payload2 = JSON.stringify(bouncedEvent());
     await post(payload2, signPayload(payload2));
-    const thirdScrape = await scrape(metrics);
-    expect(thirdScrape).toContain(
-      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 2',
+    expect(await scrape(metrics)).toContain(bouncedLine(2));
+  });
+
+  test("multiple events inside the hold window all apply after it", async () => {
+    let clock = 0;
+    const { metrics, post } = setup({}, { holdMs: 10_000, now: () => clock });
+    const payloads = Array.from({ length: 3 }, () => JSON.stringify(bouncedEvent()));
+    await Promise.all(payloads.map((payload) => post(payload, signPayload(payload))));
+
+    expect(await scrape(metrics)).toContain(
+      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 0',
+    );
+    clock = 10_001;
+    expect(await scrape(metrics)).toContain(
+      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 3',
     );
   });
 
-  test("multiple events on an unscraped series all apply after the first scrape", async () => {
+  test("non-email events do not create email.* series", async () => {
     const { metrics, post } = setup();
-    const payloads = Array.from({ length: 3 }, () => JSON.stringify(bouncedEvent()));
-    await Promise.all(payloads.map((payload) => post(payload, signPayload(payload))));
+    const payload = JSON.stringify({ type: "contact.created", data: {} });
+
+    const res = await post(payload, signPayload(payload));
+    expect(res.status).toBe(200);
     await scrape(metrics);
-    const second = await scrape(metrics);
-    expect(second).toContain(
-      'resend_email_events_total{event_type="email.bounced",from_domain="acme.example",to_domain="outlook.com"} 3',
-    );
+
+    const webhookValues = (await metrics.webhookEvents.get()).values;
+    expect(webhookValues).toHaveLength(1);
+    expect(webhookValues[0]?.labels["event_type"]).toBe("contact.created");
+    expect((await metrics.emailEvents.get()).values).toHaveLength(0);
+  });
+
+  test("initializes last-event timestamps at startup for staleness alerts", async () => {
+    const { metrics } = setup();
+    const body = await scrape(metrics);
+    expect(body).toContain('resend_webhook_last_event_timestamp_seconds{event_type="email.delivered"}');
+    expect(body).toContain('resend_webhook_last_event_timestamp_seconds{event_type="email.bounced"}');
   });
 });
 
@@ -225,6 +251,31 @@ describe("redaction", () => {
     expect(entry?.["subject_hash"]).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(entry?.["to"]).toBeUndefined();
     expect(entry?.["subject"]).toBeUndefined();
+  });
+
+  test("scrubs email addresses embedded in bounce reasons unless mode is none", async () => {
+    const { lines, post } = setup();
+    const event = bouncedEvent();
+    (event["data"] as { bounce: { message: string } }).bounce.message =
+      "550 5.1.1 <customer@outlook.com>: Recipient address rejected";
+    const payload = JSON.stringify(event);
+    await post(payload, signPayload(payload));
+
+    const entry = parse(lines).find((l) => l["message"] === "resend event received");
+    expect(entry?.["reason"]).toBe("550 5.1.1 <[email redacted]>: Recipient address rejected");
+    expect(JSON.stringify(entry)).not.toContain("customer@outlook.com");
+  });
+
+  test("keeps raw bounce reasons in none mode", async () => {
+    const { lines, post } = setup({ redactionMode: "none" });
+    const event = bouncedEvent();
+    (event["data"] as { bounce: { message: string } }).bounce.message =
+      "550 5.1.1 <customer@outlook.com>: Recipient address rejected";
+    const payload = JSON.stringify(event);
+    await post(payload, signPayload(payload));
+
+    const entry = parse(lines).find((l) => l["message"] === "resend event received");
+    expect(entry?.["reason"]).toContain("customer@outlook.com");
   });
 
   test("none mode logs full addresses and subject", async () => {

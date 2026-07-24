@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Config } from "./config.ts";
 import { bucketToDomain, domainOf, UNKNOWN_DOMAIN } from "./domains.ts";
 import type { LogFields, Logger } from "./logger.ts";
-import type { Metrics } from "./metrics.ts";
+import { type Metrics, STANDARD_EMAIL_EVENTS } from "./metrics.ts";
 
 const eventSchema = z.object({
   type: z.string().min(1),
@@ -25,32 +25,23 @@ export type ResendEvent = z.infer<typeof eventSchema>;
 
 const WARN_EVENTS = new Set(["email.bounced", "email.failed", "email.complained"]);
 
-const STANDARD_EMAIL_EVENTS = [
-  "email.sent",
-  "email.delivered",
-  "email.delivery_delayed",
-  "email.bounced",
-  "email.failed",
-  "email.complained",
-] as const;
+const EMAIL_ADDRESS = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
 /**
- * Pre-creates every standard event-type series for a label set at 0, so the
- * first bounce/failure/delay for a known domain is a visible 0→1 increment.
- * Without this, a series born mid-window at a nonzero value is invisible to
- * increase()/rate() — low-volume senders would see "0 bounced" on dashboards
- * and alerts would miss the first-ever bounce per domain.
+ * Pre-creates every standard email event-type series for a label set at 0, so
+ * the first bounce/failure/delay for a known domain is a visible 0→1
+ * increment. Without this, a series born mid-window at a nonzero value is
+ * invisible to increase()/rate() — low-volume senders would see "0 bounced"
+ * on dashboards and alerts would miss the first-ever bounce per domain.
  */
-function ensureSeriesExist(metrics: Metrics, fromDomain: string, toDomain: string | undefined): void {
+function ensureSeriesExist(metrics: Metrics, fromDomain: string, toDomain: string): void {
   for (const type of STANDARD_EMAIL_EVENTS) {
     metrics.ensureZero(metrics.webhookEvents, "webhook_events", { event_type: type, domain: fromDomain });
-    if (toDomain !== undefined) {
-      metrics.ensureZero(metrics.emailEvents, "email_events", {
-        event_type: type,
-        from_domain: fromDomain,
-        to_domain: toDomain,
-      });
-    }
+    metrics.ensureZero(metrics.emailEvents, "email_events", {
+      event_type: type,
+      from_domain: fromDomain,
+      to_domain: toDomain,
+    });
   }
 }
 
@@ -58,17 +49,28 @@ function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value.trim().toLowerCase()).digest("hex")}`;
 }
 
-function eventLogFields(event: ResendEvent, config: Config): LogFields {
+interface DerivedFields {
+  fromDomain: string;
+  recipients: string[];
+}
+
+function eventLogFields(event: ResendEvent, config: Config, derived: DerivedFields): LogFields {
   const data = event.data;
-  const recipients = typeof data?.to === "string" ? [data.to] : (data?.to ?? []);
+  const { fromDomain, recipients } = derived;
   const firstRecipient = recipients[0];
+  const rawReason = data?.failed?.reason ?? data?.bounce?.message;
   const fields: LogFields = {
     event_type: event.type,
     resend_email_id: data?.email_id,
-    from_domain: domainOf(data?.from) ?? UNKNOWN_DOMAIN,
+    from_domain: fromDomain,
     to_domain: domainOf(firstRecipient) ?? UNKNOWN_DOMAIN,
     recipient_count: recipients.length,
-    reason: data?.failed?.reason ?? data?.bounce?.message,
+    // Upstream bounce/failure text routinely embeds the full recipient
+    // address; scrub it unless the operator opted out of redaction.
+    reason:
+      rawReason === undefined || config.redactionMode === "none"
+        ? rawReason
+        : rawReason.replace(EMAIL_ADDRESS, "[email redacted]"),
     bounce_type: data?.bounce?.type,
     event_created_at: event.created_at,
   };
@@ -131,26 +133,23 @@ export function createWebhookHandler({ config, metrics, logger, verifier }: Webh
     const event = parsed.data;
     const fromDomain = domainOf(event.data?.from) ?? UNKNOWN_DOMAIN;
     const recipients = typeof event.data?.to === "string" ? [event.data.to] : (event.data?.to ?? []);
-
     const isEmailEvent = event.type.startsWith("email.");
-    const toDomain = isEmailEvent
-      ? bucketToDomain(domainOf(recipients[0]), config.extraToDomains)
-      : undefined;
-    ensureSeriesExist(metrics, fromDomain, toDomain);
+
+    if (isEmailEvent) {
+      const toDomain = bucketToDomain(domainOf(recipients[0]), config.extraToDomains);
+      ensureSeriesExist(metrics, fromDomain, toDomain);
+      metrics.inc(metrics.emailEvents, "email_events", {
+        event_type: event.type,
+        from_domain: fromDomain,
+        to_domain: toDomain,
+      });
+    }
 
     metrics.inc(metrics.webhookEvents, "webhook_events", { event_type: event.type, domain: fromDomain });
     metrics.lastEventTimestamp.set({ event_type: event.type }, Date.now() / 1000);
 
-    if (isEmailEvent) {
-      metrics.inc(metrics.emailEvents, "email_events", {
-        event_type: event.type,
-        from_domain: fromDomain,
-        to_domain: toDomain!,
-      });
-    }
-
     const level = WARN_EVENTS.has(event.type) ? "warn" : "info";
-    logger[level]("resend event received", eventLogFields(event, config));
+    logger[level]("resend event received", eventLogFields(event, config, { fromDomain, recipients }));
 
     return Response.json({ ok: true });
   };

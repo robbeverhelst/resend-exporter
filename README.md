@@ -109,6 +109,7 @@ Full reference and the cardinality design: [docs/metrics.md](docs/metrics.md). R
 | `RESEND_EXPORTER_LOG_LEVEL`           | no       | `info`             | `debug`, `info`, `warn`, `error`                                                 |
 | `RESEND_EXPORTER_REDACTION_MODE`      | no       | `strict`           | `strict`, `hash`, or `none` — see [docs/configuration.md](docs/configuration.md) |
 | `RESEND_EXPORTER_TO_DOMAIN_ALLOWLIST` | no       | —                  | Extra recipient domains kept as their own `to_domain` label value                |
+| `RESEND_EXPORTER_SERIES_HOLD_SECONDS` | no       | `60`               | New-series hold window; set >= your longest scrape interval                      |
 
 ## Documentation
 
@@ -122,7 +123,6 @@ Full reference and the cardinality design: [docs/metrics.md](docs/metrics.md). R
 
 - Optional Resend API reconciliation: backfill missed events after downtime, verify webhook configuration, and enrich sparse events (`RESEND_API_KEY` is already reserved for this)
 - Delivery-delay histogram and bounce-type breakdown metrics
-- PrometheusRule support in the Helm chart
 
 Non-goals: replacing the Resend dashboard, storing email content, and sending alert notifications directly — routing belongs in Grafana Alerting, Alertmanager, ntfy, Slack, or PagerDuty.
 

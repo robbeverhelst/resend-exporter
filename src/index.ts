@@ -17,7 +17,10 @@ function main(): void {
 
   const shutdown = (signal: string) => {
     logger.info("shutting down", { signal });
-    void server.stop().then(() => process.exit(0));
+    void server
+      .stop()
+      .then(() => process.exit(0))
+      .catch(() => process.exit(1));
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));

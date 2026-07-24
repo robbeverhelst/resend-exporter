@@ -14,6 +14,7 @@ All configuration is via environment variables. The exporter fails fast at start
 | `RESEND_EXPORTER_LOG_LEVEL`           | no       | `info`             | Minimum log level: `debug`, `info`, `warn`, `error`.                                                                                                                                            |
 | `RESEND_EXPORTER_REDACTION_MODE`      | no       | `strict`           | How much personal data reaches the logs. See below.                                                                                                                                             |
 | `RESEND_EXPORTER_TO_DOMAIN_ALLOWLIST` | no       | —                  | Comma-separated extra recipient domains that keep their own `to_domain` metric label value instead of being bucketed into `other`.                                                              |
+| `RESEND_EXPORTER_SERIES_HOLD_SECONDS` | no       | `60`               | How long a brand-new metric series stays at a scrapeable 0 before its first increments apply. Must be at least your longest Prometheus scrape interval; see [metrics.md](metrics.md).           |
 
 ## Redaction modes
 
@@ -25,7 +26,7 @@ Every accepted event produces one JSON log line. What that line contains depends
 | `hash`             | ✔                           | ✔ (`sha256:<hex>` of the lowercased value) | —                            |
 | `none`             | ✔                           | —                                          | ✔                            |
 
-`strict` is safe for logs that end up in shared or public pipelines. `hash` lets you correlate repeated failures for the same recipient without storing the address. `none` is for private deployments where full addresses in logs are acceptable.
+In `strict` and `hash` modes, email addresses embedded in upstream bounce/failure text (SMTP servers routinely quote the full recipient address) are scrubbed from the logged `reason` field. `strict` is safe for logs that end up in shared or public pipelines. `hash` lets you correlate repeated failures for the same recipient without storing the address. `none` is for private deployments where full addresses in logs are acceptable.
 
 Example log line (mode `hash`):
 
