@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.0...v1.0.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major dependencies ([#6](https://github.com/robbeverhelst/resend-exporter/issues/6)) ([878085f](https://github.com/robbeverhelst/resend-exporter/commit/878085f1934aa8c322f9ba55b27134d0175ae077))
+
 # [1.0.0](https://github.com/robbeverhelst/resend-exporter/compare/v0.3.1...v1.0.0) (2026-07-24)
 
 
