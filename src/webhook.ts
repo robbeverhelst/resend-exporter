@@ -101,24 +101,27 @@ export function createWebhookHandler({ config, metrics, logger, verifier }: Webh
   return async (req: Request): Promise<Response> => {
     const payload = await req.text();
 
-    // svix verifies the signature and then JSON-parses the payload, so a
-    // SyntaxError here means "authentic but malformed", not "forged".
-    let json: unknown;
     try {
-      json = verifier.verify(payload, {
+      verifier.verify(payload, {
         "svix-id": req.headers.get("svix-id") ?? "",
         "svix-timestamp": req.headers.get("svix-timestamp") ?? "",
         "svix-signature": req.headers.get("svix-signature") ?? "",
       });
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        metrics.inc(metrics.handlerErrors, "handler_errors", { reason: "invalid_json" });
-        logger.warn("webhook payload is not valid JSON");
-        return Response.json({ error: "invalid JSON" }, { status: 400 });
-      }
+    } catch {
       metrics.inc(metrics.signatureFailures, "signature_failures", {});
       logger.warn("webhook signature verification failed");
       return Response.json({ error: "invalid signature" }, { status: 401 });
+    }
+
+    // Parse only after the signature checks out, so a parse failure means
+    // "authentic but malformed", not "forged".
+    let json: unknown;
+    try {
+      json = JSON.parse(payload);
+    } catch {
+      metrics.inc(metrics.handlerErrors, "handler_errors", { reason: "invalid_json" });
+      logger.warn("webhook payload is not valid JSON");
+      return Response.json({ error: "invalid JSON" }, { status: 400 });
     }
 
     const parsed = eventSchema.safeParse(json);
