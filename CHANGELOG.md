@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.3...v1.0.4) (2026-10-08)
+
+
+### Bug Fixes
+
+* **deps:** update dependency svix to ^2.8.0 ([#20](https://github.com/robbeverhelst/resend-exporter/issues/20)) ([a045871](https://github.com/robbeverhelst/resend-exporter/commit/a045871df5ccd538658ad7d3aa7b205e485d5976))
+
 ## [1.0.3](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.2...v1.0.3) (2026-10-08)
 
 
