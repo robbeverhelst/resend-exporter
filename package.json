@@ -30,7 +30,7 @@
     "@semantic-release/changelog": "^7.0.0",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^11.0.1",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.3",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "semantic-release": "^25.0.9",
