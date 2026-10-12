@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.4...v1.0.5) (2026-10-12)
+
+
+### Bug Fixes
+
+* **deps:** update dependency zod to ^4.6.6 ([#22](https://github.com/robbeverhelst/resend-exporter/issues/22)) ([84d7cf7](https://github.com/robbeverhelst/resend-exporter/commit/84d7cf756fd4f22ebb21a3db273ba9bfdd8373ac))
+
 ## [1.0.4](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.3...v1.0.4) (2026-10-08)
 
 
