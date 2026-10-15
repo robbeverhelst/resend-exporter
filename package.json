@@ -13,9 +13,10 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "build": "bun build --compile --minify src/index.ts --outfile dist/resend-exporter",
-    "lint": "oxlint",
-    "fmt": "oxfmt",
-    "fmt:check": "oxfmt --check",
+    "check:lint": "bunx bun@1.4.3-canary.20261014.1 lint",
+    "fix:lint": "bunx bun@1.4.3-canary.20261014.1 lint --fix",
+    "fix:fmt": "bunx bun@1.4.3-canary.20261014.1 fmt",
+    "check:fmt": "bunx bun@1.4.3-canary.20261014.1 fmt --check",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "check:bun-native": "bun run scripts/check-bun-native.ts"
@@ -32,8 +33,6 @@
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^11.0.1",
     "@types/bun": "^1.4.3",
-    "oxfmt": "^0.72.0",
-    "oxlint": "^1.87.0",
     "semantic-release": "^25.0.9",
     "typescript": "^7.0.2"
   },
