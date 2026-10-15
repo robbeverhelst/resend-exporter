@@ -13,14 +13,14 @@ RESEND_WEBHOOK_SECRET=whsec_test bun run dev   # watch mode on :8080
 
 ## Scripts
 
-| Command                             | Purpose                                               |
-| ----------------------------------- | ----------------------------------------------------- |
-| `bun run dev`                       | Run with file watching                                |
-| `bun test`                          | Run the test suite                                    |
-| `bun run lint`                      | oxlint                                                |
-| `bun run fmt` / `bun run fmt:check` | oxfmt format / verify                                 |
-| `bun run typecheck`                 | `tsc --noEmit`                                        |
-| `bun run build`                     | Compile a standalone binary to `dist/resend-exporter` |
+| Command                           | Purpose                                               |
+| --------------------------------- | ----------------------------------------------------- |
+| `bun run dev`                     | Run with file watching                                |
+| `bun test`                        | Run the test suite                                    |
+| `bun run check:lint` / `fix:lint` | `bun lint` (pinned canary; reads `.oxlintrc.json`)    |
+| `bun run check:fmt` / `fix:fmt`   | `bun fmt` (pinned canary; reads `.oxfmtrc.json`)      |
+| `bun run typecheck`               | `tsc --noEmit`                                        |
+| `bun run build`                   | Compile a standalone binary to `dist/resend-exporter` |
 
 CI runs lint, format check, typecheck, tests, a Docker build, `helm lint`, and commitlint on every PR.
 

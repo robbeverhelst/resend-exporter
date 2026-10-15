@@ -30,10 +30,7 @@ const REPLACEABLE: Record<string, string> = {
 
 const FOREIGN_LOCKFILES = new Set(["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb"]);
 
-const ALLOWED: Record<string, string> = {
-  oxlint: "temporary: replaced by bun lint in the follow-up phase 2 PR",
-  oxfmt: "temporary: replaced by bun fmt in the follow-up phase 2 PR",
-};
+const ALLOWED: Record<string, string> = {};
 
 const DEP_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
 
