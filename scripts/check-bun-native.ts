@@ -28,7 +28,13 @@ const REPLACEABLE: Record<string, string> = {
   "lint-staged": "bun lint/fmt in CI",
 };
 
-const FOREIGN_LOCKFILES = new Set(["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb"]);
+const FOREIGN_LOCKFILES = new Set([
+  "package-lock.json",
+  "yarn.lock",
+  "npm-shrinkwrap.json",
+  "pnpm-lock.yaml",
+  "bun.lockb",
+]);
 
 const ALLOWED: Record<string, string> = {};
 
