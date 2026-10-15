@@ -17,7 +17,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "check:bun-native": "bun run scripts/check-bun-native.ts"
   },
   "dependencies": {
     "prom-client": "^15.1.3",
