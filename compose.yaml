@@ -15,7 +15,7 @@ services:
       - "8080:8080"
 
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.15.1
     volumes:
       - ./examples/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./examples/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
