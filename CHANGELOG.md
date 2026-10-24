@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.7...v1.0.8) (2026-10-24)
+
+
+### Bug Fixes
+
+* **ci:** pass release workflow values through env and harden Renovate config ([#35](https://github.com/robbeverhelst/resend-exporter/issues/35)) ([5205d45](https://github.com/robbeverhelst/resend-exporter/commit/5205d45b438c54a31eb6875df409a23a49aa3791))
+
 ## [1.0.7](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.6...v1.0.7) (2026-10-23)
 
 
