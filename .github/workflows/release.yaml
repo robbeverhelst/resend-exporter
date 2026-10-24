@@ -68,7 +68,10 @@ jobs:
         if: steps.semantic.outputs.version != ''
         env:
           VERSION: ${{ steps.semantic.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$GITHUB_TOKEN" | helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           helm package charts/resend-exporter --version "$VERSION" --app-version "$VERSION"
-          helm push "resend-exporter-$VERSION.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+          helm push "resend-exporter-$VERSION.tgz" "oci://ghcr.io/$REPOSITORY_OWNER/charts"
