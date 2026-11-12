@@ -6,7 +6,9 @@
     "group:allNonMajor",
     "helpers:pinGitHubActionDigests"
   ],
-  "labels": ["dependencies"],
+  "labels": [
+    "dependencies"
+  ],
   "rangeStrategy": "bump",
   "lockFileMaintenance": {
     "enabled": true
@@ -14,9 +16,16 @@
   "osvVulnerabilityAlerts": true,
   "packageRules": [
     {
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "matchCurrentVersion": "!/^0/",
       "automerge": true
     }
-  ]
+  ],
+  "schedule": [
+    "after 1am and before 7am"
+  ],
+  "timezone": "Europe/Brussels"
 }
