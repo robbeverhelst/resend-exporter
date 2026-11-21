@@ -1,3 +1,10 @@
+## [1.0.12](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.11...v1.0.12) (2026-11-21)
+
+
+### Bug Fixes
+
+* **ci:** install helm before pushing the chart ([#54](https://github.com/robbeverhelst/resend-exporter/issues/54)) ([da05261](https://github.com/robbeverhelst/resend-exporter/commit/da052618b2bd1920846f29eaedb99ef2c04d0991))
+
 ## [1.0.11](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.10...v1.0.11) (2026-11-21)
 
 
