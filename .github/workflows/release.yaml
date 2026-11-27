@@ -29,12 +29,18 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # semantic-release v26 requires node >=26.13; under Bun it sees Bun's
+      # Node-compat version (v26.3.0) and refuses to run, so run it on Node.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "26.13.1"
+
       # semantic-release decides whether this push warrants a release. The
       # exec plugin builds the binaries (attached as GitHub release assets)
       # and exposes the version as a step output for the publish steps below.
       - name: semantic-release
         id: semantic
-        run: bunx semantic-release
+        run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
