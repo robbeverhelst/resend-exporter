@@ -16,7 +16,11 @@ concurrency:
 
 jobs:
   release:
-    runs-on: arc-resend-exporter
+    # GitHub-hosted: setup-node's Node 26 binary can't execute on the ARC runner
+    # image (exit 127), and semantic-release v26 needs a real Node >=26.13.
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semantic.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -44,8 +48,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish:
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: arc-resend-exporter
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+
       - name: Log in to ghcr.io
-        if: steps.semantic.outputs.version != ''
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
@@ -53,30 +66,26 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
-        if: steps.semantic.outputs.version != ''
 
       - name: Push Docker image
-        if: steps.semantic.outputs.version != ''
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ steps.semantic.outputs.version }}
+            VERSION=${{ needs.release.outputs.version }}
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.semantic.outputs.version }}
+            ghcr.io/${{ github.repository }}:${{ needs.release.outputs.version }}
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
-        if: steps.semantic.outputs.version != ''
 
       - name: Push Helm chart
-        if: steps.semantic.outputs.version != ''
         env:
-          VERSION: ${{ steps.semantic.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
