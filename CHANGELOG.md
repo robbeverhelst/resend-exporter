@@ -1,3 +1,10 @@
+## [1.0.14](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.13...v1.0.14) (2026-11-27)
+
+### Bug Fixes
+
+* **ci:** run semantic-release on Node 26.13.1 so its v26 engine check passes ([#60](https://github.com/robbeverhelst/resend-exporter/issues/60)) ([1167367](https://github.com/robbeverhelst/resend-exporter/commit/11673673c70cb2c9924c2c30aef3a297c75fbfc3))
+* **ci:** run semantic-release on ubuntu-latest so setup-node's Node 26 can execute ([#61](https://github.com/robbeverhelst/resend-exporter/issues/61)) ([ac46812](https://github.com/robbeverhelst/resend-exporter/commit/ac468120c5fe1d3cfdcaf0346a4ddd7b19901cb5))
+
 ## [1.0.13](https://github.com/robbeverhelst/resend-exporter/compare/v1.0.12...v1.0.13) (2026-11-24)
 
 
